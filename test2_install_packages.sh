@@ -5,14 +5,12 @@ install2.r --error --skipinstalled \
     rgdal \
     viridis \
     mgcv \
-    snow \
     sf \
     tidyverse \
     rgeos \
     rmapshaper \
     spdep \
     spatstat \
-    RQGIS \
     mapview \
     mapedit \
     fpc \
