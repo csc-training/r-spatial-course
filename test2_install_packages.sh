@@ -1,13 +1,9 @@
 install2.r --error --skipinstalled \
     raster \
     lubridate \
-    sp \
-    rgdal \
-    viridis \
-    mgcv \
+    paletteer \
     sf \
     tidyverse \
-    rgeos \
     rmapshaper \
     spdep \
     spatstat \
@@ -16,5 +12,9 @@ install2.r --error --skipinstalled \
     fpc \
     GWmodel \
     NbClust \
-    reshape2 \
-    osmdata
+    osmdata \
+    terra \
+    patchwork \
+    exactextractr \
+    fasterize
+    
