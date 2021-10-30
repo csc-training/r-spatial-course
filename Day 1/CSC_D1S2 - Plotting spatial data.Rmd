@@ -1,0 +1,203 @@
+---
+title: "CSC Spatial Analysis with R: Day 1 Session 2 - Plotting spatial data"
+author: "Marko Kallio"
+date: "1 Nov 2021"
+output: html_document
+---
+
+
+Spatial analysis depends on our ability to visualize data, create maps and use them to *see* patterns which often cannot picked up by numerical analysis. In this session we look at basic plotting of {sf} objects using both base R plot() function, as well as ggplot2.
+
+
+
+## Base R plot()
+
+```{r}
+library(sf)
+
+# recreate the objects from last session
+point <- st_point(c(0,0))
+
+coord_matrix <- rbind(c(1.5,1.5), c(1.5,2.5), c(2.5,2.5), c(2.5,1.5))
+line <- st_linestring(coord_matrix)
+
+polygon_border <- rbind(c(0,0), c(0,3), c(3,3), c(3,0), c(0,0))
+polygon_hole <- rbind(c(1,1), c(1,2), c(2,2), c(2,1), c(1,1))
+polygon_with_hole <- st_polygon( list(polygon_border, polygon_hole))
+
+plot(point)
+plot(line)
+plot(polygon_with_hole)
+```
+
+We can include them all in the same plot.
+```{r}
+plot(polygon_with_hole)
+plot(line, add=TRUE)
+plot(point, add=TRUE)
+```
+
+And we can control their aestethics in the same way as any base R plot.
+```{r}
+plot(polygon_with_hole, col='blue')
+plot(line, col='red', lwd=5, add=TRUE)
+plot(line, col='black', lty=2, lwd=3, add=TRUE)
+plot(point, col='black',  pch=16, cex=3, add=TRUE)
+```
+
+Now let's try with some real data. 
+```{r}
+villages <- sf::read_sf("../data/villages.gpkg")
+
+plot(villages)
+plot(villages, max.plot=3)
+plot(villages[,"PovertyRate"])
+plot(villages[,"prov_name"])
+plot(sf::st_geometry(villages))
+```
+
+There are a large number of options available to control the plot. To find them all, type help("plot.sf") to the console. Here's an example of adding a graticule.
+```{r}
+plot(villages[,"LiteracyRate"], graticule = TRUE)
+```
+
+As with the geometry types, we can add many layers of {sf} objects to the plot. Here we read provincial borders of Laos and add them to the plot. 
+
+Notice that when plotting {sf} objects, we must add parameter *reset = FALSE* in order to add new layers.
+```{r}
+admin <- sf::read_sf("../data/LAO_adm1.shp")
+
+plot(villages[,10], reset=FALSE)
+plot(sf::st_geometry(admin), add=TRUE)
+```
+
+
+
+## Plotting with ggplot2
+
+One of the strengths of R is the wonderful visualization package *ggplot2*. We can also plot {sf} objects with it using *geom_sf()*. There are small differences when compared to other geom functions. First, aestethics are not required, because those come directly from the geometry. Second, the data must be directly given to *geom_sf*.
+
+```{r}
+library(ggplot2)
+ggplot() + geom_sf(data = villages, size = 0.2)
+
+```
+
+However, aestethics are useful for colours.
+```{r}
+ggplot() + 
+  geom_sf(data = admin) +
+  geom_sf(data = villages, aes(color = PovertyRate))
+
+ggplot() + 
+  geom_sf(data = admin, aes(fill=NAME_1)) +
+  geom_sf(data = villages, size = 0.2)
+```
+
+*ggplot2* is extremely powerful, and we can control pretty much anything in the plot.
+```{r}
+ggplot() + 
+  geom_sf(data = admin, fill='grey50') + 
+  geom_sf(data = villages, aes(color = ToiletType), show.legend = FALSE) + # no legend
+  theme_bw() + # black and white theme for background
+  labs(title="Villages in Laos", x = "Longitude", y = "Latitude") + # title and axis labels
+  scale_colour_viridis_c()
+```
+
+Removing graticule is possible only if removed **after** *geom_sf()*. We can zoom in, too.
+```{r}
+ggplot() + 
+  geom_sf(data = admin, fill='grey50') + 
+  geom_sf(data = villages, aes(color = ToiletType), show.legend = FALSE) + # no legend
+  theme_bw() + # black and white theme for background
+  labs(title="Villages in Laos", x = "Longitude", y = "Latitude") + # title and axis labels
+  scale_colour_viridis_c() +
+  coord_sf(datum=NA, xlim = c(103,105), ylim = c(20,22)) # remove graticule and control plot extent
+```
+
+The plot, however, also lost the latitude and longitude ticks. We can, also, just make the graticule transparent.
+
+```{r}
+ggplot() + 
+  geom_sf(data = admin, fill='grey50') + 
+  geom_sf(data = villages, aes(color = ToiletType)) + 
+  theme_bw() + # black and white theme for background
+  labs(title="Villages in Laos", x = "Longitude", y = "Latitude") + # title and axis labels
+  scale_colour_viridis_c() +
+  theme(panel.grid.major=element_line(colour="transparent")) + # make graticule transparent
+  coord_sf(xlim = c(103,105), ylim = c(20,22)) # control plot extent
+```
+
+Several plots can also be combined, with {patchwork} like here where we plot a map and accompanying scatterplot and a boxplot. 
+```{r}
+library("patchwork")
+
+p1 <- ggplot() + 
+  geom_sf(data = admin, fill='grey50') + 
+  geom_sf(data = villages, aes(color = IrrigationType)) + 
+  theme_bw() + # black and white theme for background
+  labs(title="Villages in Laos", x = "Longitude", y = "Latitude") + # title and axis labels
+  scale_colour_viridis_c() +
+  theme(panel.grid.major=element_line(colour="transparent")) + # make graticule transparent
+  coord_sf(xlim = c(103,105), ylim = c(20,22)) # control plot extent
+
+p2 <- ggplot(villages, aes(x = PovertyRate, y = LiteracyRate)) +
+  geom_point() +
+  geom_smooth()
+
+p3 <- ggplot(villages, aes(x = prov_name, y=PovertyRate)) +
+  geom_boxplot()
+
+p1 | (p2/p3)
+
+```
+
+
+## Interactive mapping using 'mapview'
+
+One of the main issues in using R for GIS is the lack of interactivity. However, recent new packages have considerably improved R's capabilities in this sector. One such package is 'mapview', which automatically creates a Leaflet-map from a large list of input classes (including {sf}, 'sp', and 'raster'). Usage of mapview is simple:
+
+```{r include=FALSE}
+library(mapview)
+
+mapview(villages)
+```
+
+We can add additional layers to the same view..
+
+```{r}
+mapview(admin) + villages
+```
+
+... and control their aestethics.
+
+```{r}
+mapview(admin, zcol = "NAME_1") + mapview(villages, zcol = "IrrigationType")
+```
+
+
+Interactive selection and editing can be done with package 'mapedit', but we will not go through the package in this course. See the package github page for more information.
+
+
+## Exercises
+
+1. 
+
+* Create a ggplot which shows admin areas, villages and rivers.
+* visualize the rivers as dashed line using parameter *lty = 2* in the geom_sf() function call.
+* give the admin areas a white or transparent *fill* colour.
+* reduce the *size* of the village dots
+
+```{r}
+villages <- read_sf("../data/villages.gpkg")
+admin <- read_sf("../data/lao_adm1.shp")
+rivers <- read_sf("../data/rivers.gpkg")
+
+```
+
+2. Create another map zooming into one full province. Hint: Use *filter* to pick one province, and get the bounding box using function *st_bbox()*.
+
+```{r}
+
+```
+

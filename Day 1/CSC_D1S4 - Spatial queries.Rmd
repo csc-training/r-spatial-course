@@ -1,0 +1,167 @@
+---
+title: "CSC Spatial Analysis with R: Day 1 Session 4 - Vector data manipulation"
+author: "Marko Kallio"
+date: "1 Nov 2021"
+output:
+  html_document:
+    df_print: paged
+    theme: flatly
+---
+
+# Spatial operations
+
+Spatial operations include all those which do not affect the feature geometries. Such include for instance queries and spatial joining of attributes
+
+
+## Spatial queries
+
+ArcGIS and QGIS provide useful tools with which we can select features by their spatial relationship to others. Such include, for instance, "select all points within a distance from a line", or "select all polygons which contain a point" etc. Such queries can be constructed in R as well.
+
+Here we select all villages which are intersecting a selected grid cell. By default, {sf} returns a sparse matrix, which returns only TRUE values, but does not record FALSE. Here we use a dense matrix, which outputs TRUE for those villages which are contained by the selected grid cell, and FALSE for those which are not.
+
+First let's load {sf}, data and create the grid.
+```{r}
+library(sf)
+library(dplyr)
+villages <- read_sf("../data/villages.gpkg")
+basins <- read_sf("../data/basins.gpkg") %>% 
+  st_set_crs(4326)
+grid_sf <- st_make_grid(basins, n=c(10,10), what="polygons") %>%
+    st_sf()
+grid_sf$ID <- 1:NROW(grid_sf)
+```
+
+
+```{r message=FALSE, warning=FALSE}
+grid_sel <- grid_sf[30:40,]
+vil_sel <- sf::st_contains(grid_sel, villages, sparse=FALSE)
+table(vil_sel)
+dim(vil_sel)
+
+```
+
+We can use the same command to count the number of villages in each grid cell, but for illustrative purpose, we use st_intersects() here. The result is the same for point objects. We'll also put an NA to all grid cells which contain 0 villages, and finally select and plot only those grid cells which contain villages.
+
+```{r message=FALSE, warning=FALSE}
+
+# count villages
+village_counts <- sf::st_intersects(grid_sf, villages, sparse=FALSE)
+dim(village_counts)
+typeof(village_counts)
+
+```
+
+```{r}
+# count true values in each row (grid objects)
+village_counts <- apply(village_counts, 1, sum)
+
+# attach to grid_sf
+grid_sf$vil_count <- village_counts
+
+plot(grid_sf[,"vil_count"], reset=FALSE)
+plot(sf::st_geometry(villages), col='white', pch=16, cex=.5, add=TRUE)
+```
+
+```{r}
+# switch 0 to NA
+village_counts[village_counts == 0] <- NA
+# attach to grid_sf
+grid_sf$vil_count <- village_counts
+
+plot(grid_sf[,"vil_count"], reset=FALSE)
+plot(sf::st_geometry(villages), col='white', pch=16, cex=.5, add=TRUE)
+```
+
+```{r}
+# select grid cells 
+grid_sel <- grid_sf[!is.na(village_counts),]
+plot(grid_sel[,"vil_count"], reset=FALSE)
+plot(sf::st_geometry(villages), col='white', pch=16, cex=.5, add=TRUE)
+```
+
+Another query we could look at is which river segments are within a selected grid cell. 
+
+```{r message=FALSE, warning=FALSE}
+rivers <- sf::read_sf("../data/rivers.gpkg") %>% 
+  sf::st_transform(4326)
+grid_sel <- grid_sf[15,]
+
+river_sel <- sf::st_within(rivers, grid_sel, sparse = FALSE)
+any(river_sel) # are there any rives in this cell?
+sum(river_sel) # how many?
+plot(rivers[river_sel,"STRAHLER"], reset=FALSE)
+plot(sf::st_geometry(grid_sel), add=TRUE)
+
+```
+
+The query above return only those river segments which are inside the selected grid cell entirely. We may want to also know which river segments have intersect the grid cell at any location:
+```{r}
+river_sel <- sf::st_intersects(rivers, grid_sel, sparse=FALSE)
+plot(rivers[river_sel,"STRAHLER"], reset=FALSE)
+plot(sf::st_geometry(grid_sel), add=TRUE)
+```
+
+
+## Spatial join
+
+We can also join attributes using spatial relationship using st_join(). Below, we create Voronoi polygons from the village point dataset, and join the attributes of the villages to the polygons. This is simple, because each polygon will contain only one point, but the algorithm can handle more complex situations. For more info, type ?st_join. 
+
+We create a bounding box which we use to contain the Voronoi, join attributes and clip the polygons to basins.
+
+```{r message=FALSE, warning=FALSE}
+
+# bbox for the resulting voronoi
+bbox <- grid_sf %>%
+    sf::st_bbox() %>%
+    sf::st_as_sfc()
+
+# Create Voronoi
+vil_voronoi <- villages %>% 
+      sf::st_union() %>% # st_voronoi() requires that the input points are as MULTIPOINT, hence the union
+      sf::st_voronoi(bbox) %>% # bbox given to specify extent of the voronoi polygons
+      sf::st_cast() %>% # Voronoi output is a single GEOMETRYCOLLECTION. we use st_cast() here to extract individual geometries from the collection
+      sf::st_sf() %>% # in order to attach data
+      sf::st_join(villages) %>% # join villages
+      sf::st_intersection(st_union(basins)) # clip to basin
+
+plot(vil_voronoi[,"PovertyRate"])
+
+```
+
+We can also join attributes from a distance. Let's attach villages with the ID of nearby river segments.
+
+```{r}
+
+villages %>% 
+  dplyr::select(ID, dRoad) %>%
+  sf::st_join(rivers, st_is_within_distance, dist = 5000) %>%
+  print()
+```
+
+*st_join()*, by default, uses *st_intersects()* to find features to join data from. Above we override the default to use *st_is_within_distance()*, and provided it with the distance parameter of 5 km.
+
+
+## Exercises
+
+1. Write an R script which
+
+* loads villages.gpkg
+* transforms CRS to EPSG:32648
+* selects one (any) village point
+* takes a buffer of 50km
+* counts how many villages fall within the buffer
+* plots the buffer and the villages
+
+```{r}
+
+```
+
+2. Do the same as above, but take a random sample of villages.
+
+* use ggplot and use colour aestethic to visualize the number of villages inside the buffers.
+
+```{r}
+random_villages <- villages %>%
+  sample_n(100) # take random sample
+```
+

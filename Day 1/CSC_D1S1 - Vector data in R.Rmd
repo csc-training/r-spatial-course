@@ -1,0 +1,276 @@
+---
+title: "CSC Spatial Analysis with R: Day 1 Session 1 - Handling vector data in R"
+author: "Marko Kallio"
+date: "1 Nov 2021"
+output:
+  html_document:
+    df_print: paged
+    theme: flatly
+---
+
+
+These lessons use a number R packages for different functions. Before we start with, let's make sure that we have all the required packages installed. The following runs a script which checks whether the package is installed, and installs them if not. Be patient, this may take a few moments.
+
+```{r results='hide' }
+inst_packages <- installed.packages()
+for (package in c("tidyverse", "sf", "raster", "rmapshaper", "spdep", "spatstat",  "mapview", "fpc", "GWmodel", "NbClust", "reshape2", "mapedit", "osmdata", "patchwork", "terra", "exactextractr", "fasterize", "readxl")) {
+  test <- package %in% inst_packages[,1]
+  if (!test) {
+    install.packages(package)
+  }
+}
+rm(package, inst_packages, test)
+
+```
+
+
+
+With the packages installed, let's get on our way. We'll first look how the vector data looks in {sf}. Let's read in some data.
+
+## Getting vector data into R
+
+```{r}
+# load libraries we will be using here
+library(sf)
+
+file <- "../Data/lao_adm1.shp"
+( laos <- sf::st_read(file) ) # yields a data.frame
+( laos <- sf::read_sf(file) ) # yields a tibble. This is what I personally prefer
+
+plot(laos)
+```
+
+We also have an excel sheet with data on Laotian villages which includes coordinate points for each village. Let's read that to R as well and convert it to an {sf}-object.
+
+```{r}
+library(readxl)
+
+villages <- readxl::read_xlsx("../data/WPI_Laos_2011_v3.xlsx")
+villages <- sf::st_as_sf(villages, coords = c("lon", "lat"), crs = 4326)
+
+plot(villages)
+
+```
+
+
+With the conversion done, let's save the data in a spatial format so that we don't
+need to do the conversion again, but we could just read in the with {sf}.
+
+```{r}
+sf::st_write(villages, "../data/villages.gpkg")
+```
+
+## Using {dplyr} verbs with {sf}
+
+
+As mentioned earlier, one of the main advantages of 'sf' over the older 'sp' is the ability to use tidyverse verbs on spatial data. Here we use dplyr function *select* to pick only three columns (attributes) from the total of 26. 
+
+```{r}
+( villages %>% 
+    dplyr::select(PovertyRate, LiteracyRate, prov_name) ) 
+```
+
+
+We can additionally select only those villages inside a certain province. This is equivalent to 'Select by attribute' in Desktop GIS.
+```{r}
+( villages %>% 
+    dplyr::select(PovertyRate, LiteracyRate, prov_name) %>% 
+    dplyr::filter(prov_name == "Attapeu") ) 
+```
+
+
+We can easily create new attributes to include in the dataset using *mutate* function. Here we add the number of villages as a new attribute. 
+```{r}
+( villages %>% 
+    dplyr::select(PovertyRate, LiteracyRate, prov_name) %>% 
+    dplyr::mutate(n_villages = n()) ) 
+```
+
+But oops! it gave every feature the same number (the total number of villages in the dataset). We could, however, count villages in each province by grouping them first. The example also creates new attributes for proverty and literacy rate
+```{r}
+( villages %>% 
+    dplyr::select(PovertyRate, LiteracyRate, prov_name) %>% 
+    dplyr::group_by(prov_name) %>%
+    dplyr::mutate(n_villages = n(),
+                  Avg_poverty = mean(PovertyRate),
+                  Min_literacy = min(LiteracyRate),
+                  Max_literacy = max(LiteracyRate)) ) 
+```
+
+We might, however, want to see the summary for each province rather than have the average poverty rate attached to every village. For this, we can *summarise*.
+```{r}
+( villages %>% 
+    dplyr::select(PovertyRate, LiteracyRate, prov_name) %>% 
+    dplyr::group_by(prov_name) %>%
+    dplyr::summarise(n_villages = n(),
+                     Avg_poverty = mean(PovertyRate),
+                     Min_literacy = min(LiteracyRate),
+                     Max_literacy = max(LiteracyRate),
+                     Range_literacy = Max_literacy - Min_literacy) )  
+```
+
+
+The tidyverse verbs can take complex functions as input, as long as they return a single value which can be vectorized. For instance, we can run a linear model inside the *mutate* function, and extract fitted values from it.
+```{r}
+( villages_modelled <- villages %>%
+    dplyr::mutate(WPI_model = lm(dWPI.bPCA.scaled ~ LiteracyRate + PovertyRate +
+                                   HumanFootprint, villages)$fitted.values) %>%
+    dplyr::select(WPI_model, dWPI.bPCA.scaled) )
+
+plot(villages_modelled)
+cor(villages_modelled$WPI_model, villages_modelled$dWPI.bPCA.scaled)
+```
+
+
+
+
+
+
+
+
+## Creating geometries in {sf}
+
+We sometimes may wish to add features to an existing set. For that, we need both the attribute data relating to that feature, and the feature geometry.
+
+
+### POINT, LINESTRING, POLYGON
+
+
+```{r}
+( point <- st_point(c(0,0)) ) # XY point
+( point_xyz <- st_point(c(2,4,1)) ) # XYZ point
+( point_xym <- st_point(c(2,4,1), dim="XYM") ) # XYM point
+( point_xyzm <- st_point(c(2,4,1,2)) )# XYZM point
+( st_zm(point_xyzm) ) # to drop Z and M dimensions if needed
+```
+
+```{r}
+coord_matrix <- rbind(c(1.5,1.5), c(1.5,2.5), c(2.5,2.5), c(2.5,1.5))
+( line <- st_linestring(coord_matrix) )
+```
+
+```{r}
+polygon_border <- rbind(c(0,0), c(0,3), c(3,3), c(3,0), c(0,0))
+( polygon <- st_polygon(list(polygon_border)) )
+
+polygon_hole <- rbind(c(1,1), c(1,2), c(2,2), c(2,1), c(1,1))
+( polygon_with_hole <- st_polygon( list(polygon_border, polygon_hole)) )
+```
+
+
+
+### MULTIPOINT, MULTILINE, MULTIPOLYGON
+```{r}
+( multi_point <- st_multipoint(coord_matrix) )
+
+coord_matrix2 <- rbind(c(4,0), c(4,4))
+( multi_line <- st_multilinestring(list(coord_matrix, coord_matrix2)) )
+
+polygon_border2 <- rbind(c(5,5), c(5,3), c(4,4), c(5,5))
+( multi_polygon <- st_multipolygon(list( list(polygon_border, polygon_hole), list(polygon_border2) )) )
+```
+
+
+
+
+### GEOMETRYCOLLECTION
+```{r}
+( geom_col <- st_geometrycollection(list(multi_point, multi_polygon, multi_line)) )
+```
+
+
+
+
+The above examples create a geometry object of class 'sfg' (simple features geometry).
+```{r}
+class(point)
+class(line)
+class(polygon)
+class(geom_col)
+```
+
+
+
+
+### Attaching attributes to 'sfg'
+
+The true power of {sf}, however, comes from the ability to attach the geometry to a data.frame or a tibble. This allows manipulating the attributes of spatial data in the same way as you would manipulate a standard data.frame. 
+
+In order to create an sf object, we need to create a simple feature geometry column (sfc). As can be seen from the output, an sfc object contains additional information about coordinate reference system and bounding box (compared to 'sfg').
+
+Several 'sfc' objects can be concatenated.
+```{r}
+point_sfc <- st_sfc(point)
+line_sfc <- st_sfc(line)
+polygon_sfc <- st_sfc(polygon_with_hole)
+col_sfc <- st_sfc(point, line, polygon_with_hole)
+
+( geom <- c(point_sfc, line_sfc, polygon_sfc) )
+```
+
+
+A simple features object ('sf') is created when attributes are attached to the geometries. Let's add a unique ID to our 3 features and a category attribute:
+```{r}
+attributes <- data.frame(ID = 1:3, cat = c("tree", "path", "house"))
+
+( objects <- st_sf(attributes, geometry = geom) )
+```
+
+We can add a new feature to the set using *rbind()* or *dplyr::bind_rows()*.
+```{r}
+
+new_feature <- st_point(c(1,1)) %>% 
+  st_sfc() %>% 
+  st_sf() %>% 
+  mutate(ID = 4,
+         cat = "human")
+
+( objects <- rbind(objects, new_feature) )
+
+plot(objects)
+
+```
+
+
+
+    
+# Exercises
+
+Write out commands which
+
+1.
+
+* *read* in villages.gpkg
+* *select* some variables
+* *filter* those villages which have a value higher than 50 in one of your selected variables
+
+```{r}
+
+```
+
+2.
+
+* *select* HumanFootprint and PovertyRate from villages
+* *mutate* a new variable **HFP** which has value 1 if HumanFootprint is higher than average HumanFootprint, and 0 if below. Hint: you can use **ifelse(condition, true, false)** inside *mutate*
+* *group by* HFP and *summarise* mean HumanFootprint 
+
+```{r}
+
+```
+
+3.
+
+* *select* vil_id from villages
+* *filter* five villages. You can use dplyr::filter(), giving it an argument of row numbers, e.g. 1:5
+* create a new village point (st_point -> st_sfc -> st_sf)
+* Give it a new attribute vil_id
+* Attach the new point to the five villages you filtered earlier.
+
+```{r}
+
+```
+
+
+
+
+
