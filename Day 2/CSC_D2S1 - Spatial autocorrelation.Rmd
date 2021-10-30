@@ -1,0 +1,267 @@
+---
+title: "CSC Spatial Analysis with R: D2S1 - Spatial autocorrelation"
+author: "Marko Kallio"
+date: "2 Nov 2021"
+output:
+  html_document:
+    df_print: paged
+    theme: flatly
+---
+
+
+Let's start the second day making sure we have everything required installed.
+
+```{r}
+inst_packages <- installed.packages()
+for (package in c("dplyr", "sf", "spdep", "elsa", "ncf", "units", "inlmisc",
+                  "spatstat",  "mapview", "fpc", "GWmodel", "NbClust", 
+                  "osmdata", "patchwork", "spatialreg")) {
+    test <- package %in% inst_packages[,1]
+    if (!test) {
+        install.packages(package)
+    }
+}
+rm(package, inst_packages, test)
+```
+
+
+# Spatial autocorrelation
+
+Spatial autocorrelation occurs when points, or their attributes are not random, but exhibit some kind of spatial relationship. Spatial autocorrelation can be positive (the attribute values are clustered), negative (values are dispersed), or there is no spatial autocorrelation (value distribution is spatially random). In other words, it measures how whether an object is similar to other objects surrounding it.
+
+
+
+## Moran's Index
+The most common metric to measure spatial autocorrelation is Moran's I. In R, we can use package 'spdep' to compute Moran's I. First, we must define a weight matrix. The Index takes values between -1 and 1, with 0 meaning no spatial autocorrelation. Commonly any value higher 0.30 or lower than -0.30 is interpreted as "strong" spatial autocorrelation. The weight matrix can affect the Index value quite a bit, so we examine here three possible ways (among many others) to construct it: distance matrix, k nearest neighbours, and neighborhoods. 
+
+```{r message=FALSE, warning=FALSE}
+library(sf, quietly=TRUE)
+library(dplyr, quietly=TRUE)
+villages <- read_sf("../data/villages.gpkg") %>% 
+    st_transform(32648) %>% 
+    sample_n(250)
+
+
+library(spdep)
+
+# first create 'listw' (weight list) object from point distance matrix  
+dmat <- 1/sf::st_distance(villages) %>% 
+  unclass() #unclassing because st_distance returns a 'unit' class object. Operations with 'unit' class require both operands to be of class 'unit'.
+diag(dmat) <- 0 # set matrix diagonal as 0
+dmat_listw <- spdep::mat2listw(dmat, style = "W")
+
+( moran <- spdep::moran.test(villages$PovertyRate, dmat_listw) )
+```
+
+```{r}
+# weights based on k nearest neighbours
+knn_listw <- sf::st_coordinates(villages) %>% 
+    spdep::knearneigh(k=40) %>% 
+    spdep::knn2nb() %>% # create neighbour list
+    spdep::nb2listw(style = "W") # create weights list from neighbour object
+spdep::moran.test(villages$PovertyRate, knn_listw)
+
+```
+
+```{r}
+# weights based on neighborhoods
+admin <- sf::read_sf("../data/LAO_adm1.shp") %>%
+    sf::st_transform(32648)
+
+vil_voronoi <- villages %>% 
+      sf::st_union() %>% 
+      sf::st_voronoi() %>% 
+      sf::st_cast() %>% 
+      sf::st_sf() %>% 
+      sf::st_join(villages) %>% 
+      sf::st_intersection(st_union(admin))
+
+nb <- spdep::poly2nb(vil_voronoi)
+summary(nb)
+
+# plot(st_geometry(vil_voronoi), col='grey' )
+# plot(nb, st_coordinates(villages), add=TRUE)
+
+nb_listw <- spdep::nb2listw(nb, style = "W")
+spdep::moran.test(villages$PovertyRate, nb_listw)
+
+plot(vil_voronoi[,"PovertyRate"])
+
+
+```
+
+## Local Moran's I
+
+Local Moran's I is also simple to compute using the 'spdep' package. It is important to note that local measure of Moran's I does not necessarily lie within -1 and 1. Read more: Luc Anselin's 1995 paper "Local Indicators of Spatial Association—LISA" seems to be open access. http://onlinelibrary.wiley.com/doi/10.1111/j.1538-4632.1995.tb00338.x/full. 
+
+```{r message=FALSE, warning=FALSE}
+local_moran <- spdep::localmoran(villages$PovertyRate, 
+                                 dmat_listw, 
+                                 alternative = "two.sided") %>% 
+    dplyr::as_tibble()
+
+# Local Moran's Index
+local_moran
+
+# plot
+vil_voronoi <- vil_voronoi %>% 
+  dplyr::mutate(Morans_I = local_moran$Ii, 
+                Morans_p = local_moran$`Pr(z != 0)`) # # p-value of local moran statistic. Notice that the column name has spaces, which means we need to refer to it with backticks. In finnish language keyboard, press shift + the button to the left of backspace.
+plot(vil_voronoi[,"Morans_I"])
+plot(vil_voronoi[,"Morans_p"])
+
+
+```
+
+```{r}
+library(ggplot2)
+p1 <- ggplot() + 
+  geom_sf(data = vil_voronoi, aes(fill = Morans_I)) +
+  scale_fill_gradient2(low="red", mid = 'white', high = 'blue') +
+  labs(title = "Moran's I")
+
+p2 <- ggplot() + 
+  geom_sf(data = vil_voronoi, aes(fill = Morans_p)) +
+  scale_fill_gradient(low="red",high = 'blue') +
+  labs(title = "Moran's I, p-value")
+
+library(patchwork)
+p1 + p2
+```
+
+
+
+## Correlogram
+
+
+We use the package ncf here to compute the correlogram. A correlogram estimates spatial autocorrelation for different distance bands, rather than trying to estimate a single Moran's I for the entire dataset. 
+```{r point correlogram}
+library(ncf)
+
+coordinates <- sf::st_coordinates(villages)
+
+corgram <- ncf::correlog(coordinates[,1], coordinates[,2], # point coordinates
+                         villages$PovertyRate, # value for estimation
+                    increment=100000, # distance lags, here 100 km
+                    resamp=50, # permutations for significance testing
+                    na.rm=TRUE)
+plot(corgram) # closed dots have p < 0.05
+
+( data <- data.frame(distance = corgram$mean.of.class,
+                       moran = corgram$correlation,
+                       p = corgram$p) )
+```
+
+
+
+
+
+## Exercises 
+
+1. 
+
+* read villages.gpkg and transform it into *EPSG:32648*
+* *filter* province Savannakhet in villages dataset. 
+* compute a *1/st_distance* matrix for the subset of villages, and create a *listw* object from it
+* compute Moran's I for an attribute of your own choice
+* draw a ggplot
+
+```{r}
+
+```
+
+
+2.
+
+* Take subset of villages from exercise 1
+* Compute *listw* object from *k*-nearest neighbours (choose *k* yourself)
+* compute local moran using the subset and knn-listw for Savannakhet.
+
+```{r}
+
+```
+
+
+3. 
+
+* compute a correlogram for Savannakhet for a variable of your choice.
+
+```{r}
+
+```
+
+
+
+
+
+
+
+# EXTRA TOPICS
+
+# Point patterns and densities
+
+Point patterns can be extensively analysed using the 'spatstat' package. Here are some examples of point pattern-related functions from the package.
+
+
+## Quadrats
+
+Quadrat analysis can be used to sample point patterns in spatial sampling areas to test for spatial distribution pattersn, randomness and clustering. In practise, we already did this in the end of previous lesson with intersections of village points to the polygon grid.
+The functions in spatstat require the point pattern to be of class 'ppp', so we create that first before running the quadratcount() function.
+
+```{r message=FALSE, warning=FALSE}
+library(spatstat, quietly = TRUE)
+
+# create village points of class 'ppp' (point pattern) from 'spatstat' package
+bbox <- st_bbox(admin)
+vil_coords <- st_coordinates(villages)
+
+window <- owin(c(bbox["xmin"], bbox["xmax"]), c(bbox["ymin"], bbox["ymax"]))
+vil_ppp <- ppp(vil_coords[,1], vil_coords[,2], window = window)
+
+quadrats <- quadratcount(vil_ppp, nx=10, ny=10)
+
+plot(vil_ppp, pch=20, col="grey")
+plot(quadrats, add=TRUE)
+
+```
+
+
+The function intensity() can then be run to get the quadrat intensity, which divides the quadrat counts by the tile areas. This yields the average density of points per unit area in each tile.
+```{r message=FALSE, warning=FALSE}
+Q_density <- intensity(quadrats, image=TRUE)
+plot(Q_density) # number of points per m2
+```
+
+
+
+## Kernel density estimation
+
+Kernel density estimation can be used for instance to evaluate point clustering. It outputs a continuous surface based on point count in the neighborhoods. In 'spatstat', this can be computed with density().
+```{r message=FALSE, warning=FALSE}
+# 10 km density
+K_dens <- density(vil_ppp, sigma=10000)
+plot(K_dens)
+plot(admin, col='grey80', add=TRUE)
+contour(K_dens, add=TRUE) # add contours to the plot
+```
+
+
+
+
+
+## Other point pattern functions
+
+There are many more functions available for extended point pattern analysis, such as nearest neighbours, K-, L-, F-, or G-functions. These are all included in the spatstat package. 
+
+```{r}
+# Average nearest neighbour distance
+nn <- nndist(vil_ppp, k=1)
+mean(nn)
+
+# K-, L-, F-, or G-functions
+vil_G <- Gest(vil_ppp)
+vil_L <- Lest(vil_ppp)
+vil_L <- Gest(vil_ppp)
+vil_L <- Fest(vil_ppp)
+plot(vil_G)
+```
