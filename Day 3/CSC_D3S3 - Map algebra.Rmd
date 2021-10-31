@@ -1,0 +1,171 @@
+---
+title: "CSC_D3S3 - Map algebra"
+author: "Marko Kallio"
+date: "3 Nov 2021"
+output: html_document
+---
+
+
+We have already looked at most of Map algebra already - local, focal and global functions. Here we will look at these a little bit more in detail, and include zonal functions here too.
+
+```{r}
+library(terra)
+library(dplyr)
+
+files <- list.files("../data/raster/RRmon_Monthly_2005-2014/", 
+                    full.names = TRUE)
+
+rainfall <- lapply(files, terra::rast) #read in all files, output is a list
+rainfall <- do.call("c", rainfall) # stack all rasters together
+
+plot(rainfall)
+```
+
+
+
+## Local functions
+
+Local functions are those which deal with single cells at the time, without considering any neighbours. Local functions can be applied directly to the {terra} SpatRasters.
+
+```{r}
+
+rainfall / 30 # approximate per-day rainfall, assuming 30-day months
+
+mean(rainfall) # average per-cell rainfall
+
+max(rainfall) # maximum per-cell rainfall
+
+rainfall_quantiles <- quantile(rainfall, 
+                               probs = c(0.05, 0.5, 0.95)) # 5th, 50th, and 95th percentiles
+
+plot(rainfall_quantiles)
+```
+
+We can also use our own defined functions through *terra::app()*. Here we compute the coefficient of variation for rainfall.
+
+```{r}
+cv <- function(x, na.rm=FALSE) {
+    stdev <- sd(x, na.rm=na.rm)
+    mn <- mean(x, na.rm=na.rm)
+    
+    return(stdev/mn)
+}
+
+# cv(rainfall) this fails!
+
+rainfall_cv <- terra::app(rainfall, fun = cv)
+
+plot(rainfall_cv)
+
+```
+
+
+## focal functions
+
+We have looked at focal functions quickly over the last session, and made some exercises. *terra::focal()* can take user defined functions as well. Here we compute coefficient of variation over a window of 50km. 
+
+```{r}
+
+rainfall_cv_50km <- terra::focal(rainfall,
+                                 w = 5,
+                                 fun = cv,
+                                 na.rm=TRUE)
+
+plot(rainfall_cv_50km)
+
+
+
+```
+
+Focal does not (yet) support multiple layers, but we can overcome this issue with some tricks:
+
+```{r}
+
+rainfall_cv_50km <- lapply(1:12, function(i) {
+    cv_50km <- terra::focal(rainfall[[i]], w = 5, fun = cv)
+    return(cv_50km)
+}) %>% do.call("c", .)
+
+plot(rainfall_cv_50km)
+```
+
+
+
+### Zonal functions
+
+Zonal functions have not been addressed yet. In zonal operations, some function is applied to all the values within specified zones. For an example, we will use the classified temperature zones we created at the end of last session. We'll find the mean and maximum rainfall falling within those zones.
+
+```{r}
+
+temperature_zones <- rast("../data/raster/temperature_classified.tif")
+
+
+( zonal_rainfall <- terra::zonal(rainfall, temperature_zones, fun = mean) )
+
+library(ggplot2)
+library(tidyr)
+
+data <- tidyr::gather(zonal_rainfall, month, rainfall, -mean) %>% 
+    mutate(month = rep(1:120, each = 5),
+           zone = factor(mean))
+
+ggplot(data) +
+    geom_line(aes(month, rainfall, color = zone)) +
+    paletteer::scale_color_paletteer_d(palette = "lisa::Rembrandt")
+
+```
+
+What id we'd like to know the mean rainfall in each of Finland's municipalities? first we'd need to rasterize the admin boundaries, and apply zonal operation to them.
+
+```{r}
+
+admin <- sf::read_sf("../data/raster/SuomenKuntajako_2021_100k.shp")
+
+admin_raster <- terra::rasterize(terra::vect(admin),
+                                 rainfall, # this is the target raster which is used for rasterization
+                                 field = "NATCODE") # which attribute we're rasterizing 
+
+
+rainfall_admin <- terra::zonal(mean(rainfall), admin_raster, fun = mean)
+
+rainfall_admin <- dplyr::left_join(dplyr::select(admin, NATCODE, NAMEFIN),
+                                   rainfall_admin,
+                                   by = "NATCODE") %>% 
+    dplyr::arrange(-mean)
+
+rainfall_admin
+
+```
+
+
+
+## Global functions
+
+Global functions are those which are applied to all the values in a raster layer at once. These can be simple ones like computing the mean of the raster values, or more complex, like a viewshed function.
+
+```{r}
+
+terra::global(rainfall, fun = mean, na.rm=TRUE)
+terra::global(rainfall, fun = quantile, probs = c(0.05, 0.5, 0.95), na.rm=TRUE)
+terra::global(rainfall, fun = cv, na.rm=TRUE)
+
+
+
+```
+
+
+
+## Exercises
+
+1.
+
+* Read in one temperature layer from "../data/raster/Tmean_monthly_2005-2014/".
+* Convert the temperatures in that layer from Celcius to Kelvin.
+
+
+2. 
+
+* Create a zone (rasterize)for a munucipality of your choosing (bigger ones better - use only that municipality polygon when rasterizing)
+* Compute some zonal statistics for that municipality.
+
+

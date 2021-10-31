@@ -1,0 +1,238 @@
+---
+title: "CSC_D3S2 - Raster data manipulation and extraction"
+author: "Marko Kallio"
+date: "3 Nov 2021"
+output: html_document
+---
+
+## Raster data manipulation
+
+
+
+
+```{r}
+library(terra)
+library(sf)
+library(dplyr)
+library(tidyr)
+library(tmap)
+
+admin <- sf::read_sf("../data/raster/SuomenKuntajako_2021_100k.shp")
+helsinki <- dplyr::filter(admin, NAMEFIN == "Helsinki")
+plot(admin)
+
+```
+
+
+Read in a list of files.
+
+```{r}
+files <- list.files("../data/raster/Tmean_Monthly_2005-2014/", 
+                    full.names = TRUE)
+
+temperature <- lapply(files, terra::rast) #read in all files, output is a list
+temperature <- do.call("c", temperature) # stack all rasters together
+
+plot(temperature)
+```
+
+
+Before we do anything, let's make sure both datasets are in the same coordinate reference system. We'll use the CRS of temperature raster stack, because tranforming a raster changes its values.
+
+```{r}
+sf::st_crs(helsinki)
+terra::crs(temperature)
+
+helsinki <- sf::st_transform(helsinki, terra::crs(temperature))
+
+# we could project the raster with:
+# temperature <- terra::project(temperature, sf::st_crs(helsinki))
+```
+
+
+### Extracting values using a polygon
+
+Now we can find out all the values in the raster stack for Helsinki! to do this in {terra}, we need to convert the sf-helsinki into a SpatVector-helsinki. This works the same way for lines and points as well.
+
+```{r}
+helsinki_terra <- terra::vect(helsinki)
+helsinki_temps <- terra::extract(temperature, helsinki_terra)
+
+helsinki_temps <- dplyr::summarise_all(helsinki_temps, mean, na.rm=TRUE) %>% 
+    tidyr::gather(date, temperature, -ID) %>% 
+    dplyr::mutate(date = stringr::word(date, 2, sep = "_"))
+
+helsinki_temps
+plot(helsinki_temps[,3])
+lines(helsinki_temps[,3])
+```
+
+
+### Aggregation and resampling
+
+Aggregation is done by providing the function a factor - how many cells in each direction are used to aggregate. The temperature has a resolution of 10km. Aggregating by factor 4 yields a raster with resolution of 40km (by 40km).
+
+```{r}
+temp_40km <- terra::aggregate(temperature, fact = 4, fun = mean)
+plot(temp_40km)
+```
+
+We can also disaggregate - but the original values cannot be returned!
+
+```{r}
+temp_10km <- terra::disagg(temp_40km, fact = 4, method = "bilinear")
+temp_10km
+
+temp_difference <- temp_10km - temperature
+
+plot(temp_difference[[1]])
+```
+
+Resampling can achieve both. But are they the same - no!
+
+```{r}
+
+temp_40km_resampled <- terra::resample(temperature, temp_40km, method = "bilinear")
+plot(temp_40km_resampled)
+plot(temp_40km - temp_40km_resampled)
+
+```
+
+
+### Spatial subsets via cropping
+
+Let's have a closer look at temperatures in Turku. First we'll get a bounding box of the municipality, and crop the raster using that.
+
+```{r}
+
+Turku_temps <- terra::crop(temperature,
+                           admin %>% 
+                               dplyr::filter(NAMEFIN == "Turku") %>% 
+                               terra::vect(),
+                           snap = "out")
+
+plot(Turku_temps[[1]])
+plot(sf::st_geometry(admin), add=TRUE)
+
+
+```
+
+
+## focal statistics,
+
+or the so-called moving window statistics. We can use any function for focal statistics, as long as it takes an input of multiple numerical values, and returns a single value only.
+However, it only runs for a single layer
+```{r}
+
+# ntice the message saying it only used the first layer
+temperature_smoothed <- terra::focal(temperature,
+                                     w = 3,
+                                     fun = mean,
+                                     na.rm=TRUE)
+
+plot(temperature_smoothed)
+plot(temperature[[1]])
+
+```
+
+We can also define the neighbourhood in other ways:
+```{r}
+temperature_smoothed <- terra::focal(temperature[[1]],
+                                     w = c(3,ncol(temperature)-1),
+                                     fun = mean,
+                                     na.rm=TRUE)
+plot(temperature_smoothed)
+
+# remove values from the sea
+temperature_smoothed[is.na(temperature[[1]])] <- NA
+plot(temperature_smoothed)
+
+
+```
+
+or with matrices:
+
+```{r}
+
+weight_matrix <- matrix(1, nrow = nrow(temperature)-1, ncol = 1)
+
+temperature_smoothed <- terra::focal(temperature[[1]],
+                                     w = weight_matrix,
+                                     fun = mean,
+                                     na.rm=TRUE)
+
+plot(temperature_smoothed)
+
+# remove values from the sea
+temperature_smoothed[is.na(temperature[[1]])] <- NA
+plot(temperature_smoothed)
+
+```
+
+
+### reclassification
+
+The final part of this lesson shows reclassification. Here we divide Finland into classes based on mean temperature.
+
+But before that, lets compute the mean temeprature at each cell over the 10-year period 2005-2014, and find "optimal" class intervals.
+
+```{r}
+
+temperature_mean <- mean(temperature)
+
+library(classInt)
+
+intervals <- classIntervals(terra::values(temperature_mean),
+                            n = 4,
+                            style = "quantile")
+
+reclass_matrix <- matrix(c(-Inf, intervals$brks[1], 1,
+                           intervals$brks[1], intervals$brks[2], 2,
+                           intervals$brks[2], intervals$brks[3], 3,
+                           intervals$brks[3], intervals$brks[4], 4,
+                           intervals$brks[4], Inf, 5),
+                         ncol = 3,
+                         byrow = TRUE)
+
+temperature_classified <- terra::classify(temperature_mean,
+                                          reclass_matrix)
+
+plot(temperature_classified)
+
+```
+
+
+And finally, let's save that raster for later use.
+```{r}
+
+terra::writeRaster(temperature_classified, 
+                   filename = "../data/raster/temperature_classified.tif")
+
+
+```
+
+
+
+
+## Exercises
+
+1.
+
+* Choose a municipality from the municipality dataset (larger municipalities are better). Crop the temperature raster stack to that municipality.
+* find the mean, min, and max temperatures for that municipality over the period 2005-2014 (the full raster stack)
+
+
+2. 
+
+* compute a focal function over the temperature_mean raster with the window of your choosing (square, rectangular, or some other matrix. Look at the help for *terra::focal()*. Try e.g. the Laplacian or Sobel filters?)
+* Crop both rasters to the municipality you chose: the temperature_mean raster and the focal raster you've just created.
+* Plot the rasters - do you see large differences? Compute the difference between the rasters, and plot that too.
+
+
+3. 
+
+* Reclassify both rasters using just two classes: *hot* and *cold*. Where are the hot and cold parts of the municipality?
+
+
+
+

@@ -1,0 +1,146 @@
+---
+title: "CSC_D3S1 - Raster data in R"
+author: "Marko Kallio"
+date: "3 Nov 2021"
+output: html_document
+---
+
+
+
+Let's make sure we have everything we need for Day 3.
+
+```{r}
+inst_packages <- installed.packages()
+for (package in c("raster", "terra", "paletteer", "sf", "dplyr", "elsa",
+                  "fasterize", "tmap", "classInt", "tidyr", "ggplot2")) {
+    test <- package %in% inst_packages[,1]
+    if (!test) {
+        install.packages(package)
+    }
+}
+rm(package, inst_packages, test)
+```
+
+
+
+## Raster basics using Terra
+
+Let's first create two rasters from scratch.
+
+```{r create matrix template}
+library(terra)
+library(paletteer)
+
+side <- 15
+empty_mat <- matrix(0, nrow = side, ncol = side)
+
+mat1 <- empty_mat
+for(i in 1:side) {
+    mat1[,i] <- i
+}
+
+# look at the matrix, convert it to a raster and plot the raster
+mat1
+r1 <- terra::rast(mat1)
+terra::ext(r1) <- c(0,side,0,side) # set extent
+plot(r1)
+```
+
+
+Let's do another kind of raster, this time filled with random numbers.
+
+```{r}
+mat2 <- matrix(runif(length(empty_mat),0,10), nrow=side, ncol=side)
+r2 <- terra::rast(mat2)
+terra::ext(r2) <- c(0,side,0,side) # set extent
+plot(r2, col = paletteer::paletteer_c("grDevices::Viridis", 10))
+```
+
+
+We now have two kind of rasters, one with gradually increasing values, and another one with random values. Let's compute Moran's I for both. {elsa} package works with objects from {raster} rather than {terra}, so we first convert.
+
+```{r}
+library(elsa)
+r1 <- raster::raster(r1)
+r2 <- raster::raster(r2)
+
+elsa::moran(r1, d1 = 0, d2 = 10)
+elsa::moran(r2, dl = 0, d2 = 10)
+```
+Just as expected. {elsa} has functions for a number of other spatial autocorrelation options too.
+
+The raster values can be easily modified and stacked.
+
+```{r}
+
+r1 <- terra::rast(r1) # convert back to terra
+
+r1 + 5
+sqrt(r1)
+r1^2
+1 / r1
+
+stack <- c(r1, r1+5, r1^2, 1/r1)
+names(stack) <- c("add 5", "square root", "square", "division")
+plot(stack)
+
+```
+
+
+
+
+## Real world data
+
+Let's read in the elevation model of Finland included in the data and inspect it.
+
+```{r}
+
+elevation <- terra::rast("../data/raster/Elevation_10km.tif")
+
+summary(elevation)
+ext(elevation) # this is the boundinx box of the raster
+plot(elevation, col = paletteer::paletteer_c("viridis::viridis", 100))
+
+elevation[elevation == 0] <- NA
+plot(elevation, col = paletteer::paletteer_c("viridis::viridis", 100))
+```
+
+We can compute statistics from the elevation layer using *global()* function.
+
+```{r}
+
+global(elevation, mean, na.rm=TRUE)
+global(elevation, median, na.rm=TRUE)
+global(elevation, range, na.rm=TRUE)
+global(elevation, sd, na.rm=TRUE) 
+
+global(stack, mean)
+
+```
+
+
+## Exercises
+
+1.
+
+* Read in a temperature layer from "../data/raster/Tmean_Monthly_2005-2014/Tmon_20050101.tif"
+* Read in two other layers from the same folder, but from a different month. The number in the file refers to YYYYMMDD.
+* Stack the three layers in one
+* compute mean temperature
+* plot a histogram using *hist()*
+
+```{r}
+
+```
+
+
+2.
+
+* plot the temperature layers
+* use a colour palette using paletteer_c()
+
+
+```{r}
+
+```
+

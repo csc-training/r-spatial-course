@@ -1,0 +1,2 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<metadata xml:lang="fi"><Esri><CreaDate>20180208</CreaDate><CreaTime>17443300</CreaTime><ArcGISFormat>1.0</ArcGISFormat><SyncOnce>TRUE</SyncOnce><DataProperties><lineage><Process ToolSource="c:\program files (x86)\arcgis\desktop10.3\ArcToolbox\Toolboxes\Conversion Tools.tbx\PointToRaster" Date="20180208" Time="174433">PointToRaster "PLUMES_Grid_10km_EF.txt Events" lake G:\Opetus\CSC2018\Aineistot\Lake_10km.tif MOST_FREQUENT NONE 10000</Process></lineage></DataProperties></Esri></metadata>

@@ -13,7 +13,7 @@ These lessons use a number R packages for different functions. Before we start w
 
 ```{r results='hide' }
 inst_packages <- installed.packages()
-for (package in c("tidyverse", "sf", "raster", "rmapshaper", "spdep", "spatstat",  "mapview", "fpc", "GWmodel", "NbClust", "reshape2", "mapedit", "osmdata", "patchwork", "terra", "exactextractr", "fasterize", "readxl")) {
+for (package in c("dplyr", "sf", "rmapshaper",  "mapview",  "patchwork", "readxl", "ggplot2")) {
   test <- package %in% inst_packages[,1]
   if (!test) {
     install.packages(package)
