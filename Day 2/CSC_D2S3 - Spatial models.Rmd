@@ -25,12 +25,12 @@ library(dplyr)
 
 set.seed(20210102) # for reproducibility
 # for CSC notebooks  replace ".." with "/home/rstudio/r-spatial-course"
-villages <- sf::read_sf("../data/villages.gpkg") %>% 
+villages <- sf::read_sf("../Data/villages.gpkg") %>% 
     sf::st_transform(32648) %>% 
     dplyr::sample_n(500)
 
 # for CSC notebooks  replace ".." with "/home/rstudio/r-spatial-course"
-admin <- sf::read_sf("../data/LAO_adm1.shp") %>% 
+admin <- sf::read_sf("../Data/LAO_adm1.shp") %>% 
   sf::st_transform(32648)
 
 vil_voronoi <- villages %>% 

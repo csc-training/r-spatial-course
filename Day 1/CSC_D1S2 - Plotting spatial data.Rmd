@@ -51,7 +51,7 @@ Now let's try with some real data.
 # villages <- sf::read_sf("/home/rstudio/r-spatial-course/Data/villages.gpkg")
 
 # for windows
-villages <- sf::read_sf("../data/villages.gpkg")
+villages <- sf::read_sf("../Data/villages.gpkg")
 
 plot(villages)
 plot(villages, max.plot=3)
@@ -70,8 +70,8 @@ As with the geometry types, we can add many layers of {sf} objects to the plot. 
 Notice that when plotting {sf} objects, we must add parameter *reset = FALSE* in order to add new layers.
 ```{r}
 # for CSC notebooks  replace ".." with "/home/rstudio/r-spatial-course"
-# admin <- sf::read_sf("/home/rstudio/r-spatial-course/data/LAO_adm1.shp")
-admin <- sf::read_sf("../data/LAO_adm1.shp")
+# admin <- sf::read_sf("/home/rstudio/r-spatial-course/Data/LAO_adm1.shp")
+admin <- sf::read_sf("../Data/LAO_adm1.shp")
 
 plot(villages[,10], reset=FALSE)
 plot(sf::st_geometry(admin), add=TRUE)
@@ -196,9 +196,9 @@ Interactive selection and editing can be done with package 'mapedit', but we wil
 
 ```{r}
 # for CSC notebooks  replace ".." with "/home/rstudio/r-spatial-course"
-villages <- read_sf("../data/villages.gpkg")
-admin <- read_sf("../data/LAO_adm1.shp")
-rivers <- read_sf("../data/rivers.gpkg")
+villages <- read_sf("../Data/villages.gpkg")
+admin <- read_sf("../Data/LAO_adm1.shp")
+rivers <- read_sf("../Data/rivers.gpkg")
 
 ```
 

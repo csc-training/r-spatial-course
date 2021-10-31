@@ -29,9 +29,9 @@ library(mapview)
 
 ```{r message=FALSE, warning=FALSE}
 # for CSC notebooks "/home/rstudio/r-spatial-course/"
-# basins <- sf::read_sf("/home/rstudio/r-spatial-course/data/basins.gpkg") %>%
+# basins <- sf::read_sf("/home/rstudio/r-spatial-course/Data/basins.gpkg") %>%
 #     sf::st_set_crs(4326)
-basins <- sf::read_sf("../../data/basins.gpkg") %>%
+basins <- sf::read_sf("../../Data/basins.gpkg") %>%
     sf::st_set_crs(4326)
 
 plot(basins, max.plot=3)
@@ -91,8 +91,8 @@ Unlike many graphical GIS programs (e.g. ArcGIS, QGIS), R cannot transform objec
 
 ```{r}
 # for CSC notebooks  replace ".." with "/home/rstudio/r-spatial-course"
-basins <- sf::read_sf("../data/basins.gpkg", quiet = TRUE)
-rivers <- sf::read_sf("../data/rivers.gpkg", quiet = TRUE)
+basins <- sf::read_sf("../Data/basins.gpkg", quiet = TRUE)
+rivers <- sf::read_sf("../Data/rivers.gpkg", quiet = TRUE)
 sf::st_crs(basins)
 sf::st_crs(rivers)
 
@@ -246,7 +246,7 @@ Say we were interested in villages in a specific river basin. We can take an int
 
 ```{r message=FALSE, warning=FALSE}
 # for CSC notebooks  replace ".." with "/home/rstudio/r-spatial-course"
-villages <- sf::read_sf("../data/villages.gpkg") %>%
+villages <- sf::read_sf("../Data/villages.gpkg") %>%
     sf::st_transform(32648)
 
 map <- mapview::mapview(villages) + basins
