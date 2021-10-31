@@ -94,7 +94,7 @@ plot(stack)
 Let's read in the elevation model of Finland included in the data and inspect it.
 
 ```{r}
-
+# for CSC notebooks  replace ".." with "/home/rstudio/r-spatial-course"
 elevation <- terra::rast("../data/raster/Elevation_10km.tif")
 
 summary(elevation)
@@ -122,6 +122,7 @@ global(stack, mean)
 ## Exercises
 
 1.
+remember: for CSC notebooks  replace ".." with "/home/rstudio/r-spatial-course"
 
 * Read in a temperature layer from "../data/raster/Tmean_Monthly_2005-2014/Tmon_20050101.tif"
 * Read in two other layers from the same folder, but from a different month. The number in the file refers to YYYYMMDD.

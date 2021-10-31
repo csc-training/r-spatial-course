@@ -12,6 +12,7 @@ We have already looked at most of Map algebra already - local, focal and global 
 library(terra)
 library(dplyr)
 
+# for CSC notebooks  replace ".." with "/home/rstudio/r-spatial-course"
 files <- list.files("../data/raster/RRmon_Monthly_2005-2014/", 
                     full.names = TRUE)
 
@@ -96,7 +97,7 @@ plot(rainfall_cv_50km)
 Zonal functions have not been addressed yet. In zonal operations, some function is applied to all the values within specified zones. For an example, we will use the classified temperature zones we created at the end of last session. We'll find the mean and maximum rainfall falling within those zones.
 
 ```{r}
-
+# for CSC notebooks  replace ".." with "/home/rstudio/r-spatial-course"
 temperature_zones <- rast("../data/raster/temperature_classified.tif")
 
 
@@ -118,7 +119,7 @@ ggplot(data) +
 What id we'd like to know the mean rainfall in each of Finland's municipalities? first we'd need to rasterize the admin boundaries, and apply zonal operation to them.
 
 ```{r}
-
+# for CSC notebooks  replace ".." with "/home/rstudio/r-spatial-course"
 admin <- sf::read_sf("../data/raster/SuomenKuntajako_2021_100k.shp")
 
 admin_raster <- terra::rasterize(terra::vect(admin),
@@ -158,9 +159,15 @@ terra::global(rainfall, fun = cv, na.rm=TRUE)
 ## Exercises
 
 1.
+remember: for CSC notebooks  replace ".." with "/home/rstudio/r-spatial-course"
+
 
 * Read in one temperature layer from "../data/raster/Tmean_monthly_2005-2014/".
 * Convert the temperatures in that layer from Celcius to Kelvin.
+
+```{r}
+
+```
 
 
 2. 
@@ -168,4 +175,7 @@ terra::global(rainfall, fun = cv, na.rm=TRUE)
 * Create a zone (rasterize)for a munucipality of your choosing (bigger ones better - use only that municipality polygon when rasterizing)
 * Compute some zonal statistics for that municipality.
 
+```{r}
+
+```
 

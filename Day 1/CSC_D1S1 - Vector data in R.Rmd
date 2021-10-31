@@ -33,7 +33,9 @@ With the packages installed, let's get on our way. We'll first look how the vect
 # load libraries we will be using here
 library(sf)
 
-file <- "../Data/lao_adm1.shp"
+# in the CSC notebook, the whole filepath needs to be states: we cannot use relative notation?
+# file <- "/home/rstudio/r-spatial-course/data/LAO_adm1.shp"
+file <- "../data/lao_adm1.shp"
 ( laos <- sf::st_read(file) ) # yields a data.frame
 ( laos <- sf::read_sf(file) ) # yields a tibble. This is what I personally prefer
 
@@ -83,7 +85,7 @@ We can easily create new attributes to include in the dataset using *mutate* fun
 ```{r}
 ( villages %>% 
     dplyr::select(PovertyRate, LiteracyRate, prov_name) %>% 
-    dplyr::mutate(n_villages = n()) ) 
+    dplyr::mutate(n_villages = dplyr::n()) ) 
 ```
 
 But oops! it gave every feature the same number (the total number of villages in the dataset). We could, however, count villages in each province by grouping them first. The example also creates new attributes for proverty and literacy rate
@@ -91,7 +93,7 @@ But oops! it gave every feature the same number (the total number of villages in
 ( villages %>% 
     dplyr::select(PovertyRate, LiteracyRate, prov_name) %>% 
     dplyr::group_by(prov_name) %>%
-    dplyr::mutate(n_villages = n(),
+    dplyr::mutate(n_villages = dplyr::n(),
                   Avg_poverty = mean(PovertyRate),
                   Min_literacy = min(LiteracyRate),
                   Max_literacy = max(LiteracyRate)) ) 
@@ -102,7 +104,7 @@ We might, however, want to see the summary for each province rather than have th
 ( villages %>% 
     dplyr::select(PovertyRate, LiteracyRate, prov_name) %>% 
     dplyr::group_by(prov_name) %>%
-    dplyr::summarise(n_villages = n(),
+    dplyr::summarise(n_villages = dplyr::n(),
                      Avg_poverty = mean(PovertyRate),
                      Min_literacy = min(LiteracyRate),
                      Max_literacy = max(LiteracyRate),
@@ -137,37 +139,37 @@ We sometimes may wish to add features to an existing set. For that, we need both
 
 
 ```{r}
-( point <- st_point(c(0,0)) ) # XY point
-( point_xyz <- st_point(c(2,4,1)) ) # XYZ point
-( point_xym <- st_point(c(2,4,1), dim="XYM") ) # XYM point
-( point_xyzm <- st_point(c(2,4,1,2)) )# XYZM point
-( st_zm(point_xyzm) ) # to drop Z and M dimensions if needed
+( point <- sf::st_point(c(0,0)) ) # XY point
+( point_xyz <- sf::st_point(c(2,4,1)) ) # XYZ point
+( point_xym <- sf::st_point(c(2,4,1), dim="XYM") ) # XYM point
+( point_xyzm <- sf::st_point(c(2,4,1,2)) )# XYZM point
+( sf::st_zm(point_xyzm) ) # to drop Z and M dimensions if needed
 ```
 
 ```{r}
 coord_matrix <- rbind(c(1.5,1.5), c(1.5,2.5), c(2.5,2.5), c(2.5,1.5))
-( line <- st_linestring(coord_matrix) )
+( line <- sf::st_linestring(coord_matrix) )
 ```
 
 ```{r}
 polygon_border <- rbind(c(0,0), c(0,3), c(3,3), c(3,0), c(0,0))
-( polygon <- st_polygon(list(polygon_border)) )
+( polygon <- sf::st_polygon(list(polygon_border)) )
 
 polygon_hole <- rbind(c(1,1), c(1,2), c(2,2), c(2,1), c(1,1))
-( polygon_with_hole <- st_polygon( list(polygon_border, polygon_hole)) )
+( polygon_with_hole <- sf::st_polygon( list(polygon_border, polygon_hole)) )
 ```
 
 
 
 ### MULTIPOINT, MULTILINE, MULTIPOLYGON
 ```{r}
-( multi_point <- st_multipoint(coord_matrix) )
+( multi_point <- sf::st_multipoint(coord_matrix) )
 
 coord_matrix2 <- rbind(c(4,0), c(4,4))
-( multi_line <- st_multilinestring(list(coord_matrix, coord_matrix2)) )
+( multi_line <- sf::st_multilinestring(list(coord_matrix, coord_matrix2)) )
 
 polygon_border2 <- rbind(c(5,5), c(5,3), c(4,4), c(5,5))
-( multi_polygon <- st_multipolygon(list( list(polygon_border, polygon_hole), list(polygon_border2) )) )
+( multi_polygon <- sf::st_multipolygon(list( list(polygon_border, polygon_hole), list(polygon_border2) )) )
 ```
 
 
@@ -175,7 +177,7 @@ polygon_border2 <- rbind(c(5,5), c(5,3), c(4,4), c(5,5))
 
 ### GEOMETRYCOLLECTION
 ```{r}
-( geom_col <- st_geometrycollection(list(multi_point, multi_polygon, multi_line)) )
+( geom_col <- sf::st_geometrycollection(list(multi_point, multi_polygon, multi_line)) )
 ```
 
 
@@ -200,10 +202,10 @@ In order to create an sf object, we need to create a simple feature geometry col
 
 Several 'sfc' objects can be concatenated.
 ```{r}
-point_sfc <- st_sfc(point)
-line_sfc <- st_sfc(line)
-polygon_sfc <- st_sfc(polygon_with_hole)
-col_sfc <- st_sfc(point, line, polygon_with_hole)
+point_sfc <- sf::st_sfc(point)
+line_sfc <- sf::st_sfc(line)
+polygon_sfc <- sf::st_sfc(polygon_with_hole)
+col_sfc <- sf::st_sfc(point, line, polygon_with_hole)
 
 ( geom <- c(point_sfc, line_sfc, polygon_sfc) )
 ```
@@ -213,16 +215,16 @@ A simple features object ('sf') is created when attributes are attached to the g
 ```{r}
 attributes <- data.frame(ID = 1:3, cat = c("tree", "path", "house"))
 
-( objects <- st_sf(attributes, geometry = geom) )
+( objects <- sf::st_sf(attributes, geometry = geom) )
 ```
 
 We can add a new feature to the set using *rbind()* or *dplyr::bind_rows()*.
 ```{r}
 
-new_feature <- st_point(c(1,1)) %>% 
-  st_sfc() %>% 
-  st_sf() %>% 
-  mutate(ID = 4,
+new_feature <- sf::st_point(c(1,1)) %>% 
+  sf::st_sfc() %>% 
+  sf::st_sf() %>% 
+  dplyr::mutate(ID = 4,
          cat = "human")
 
 ( objects <- rbind(objects, new_feature) )
