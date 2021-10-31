@@ -31,7 +31,7 @@ library(mapview)
 # for CSC notebooks "/home/rstudio/r-spatial-course/"
 # basins <- sf::read_sf("/home/rstudio/r-spatial-course/Data/basins.gpkg") %>%
 #     sf::st_set_crs(4326)
-basins <- sf::read_sf("../../Data/basins.gpkg") %>%
+basins <- sf::read_sf("../Data/basins.gpkg") %>%
     sf::st_set_crs(4326)
 
 plot(basins, max.plot=3)

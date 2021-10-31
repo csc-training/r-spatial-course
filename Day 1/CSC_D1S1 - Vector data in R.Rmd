@@ -35,7 +35,7 @@ library(sf)
 
 # in the CSC notebook, the whole filepath needs to be states: we cannot use relative notation?
 # file <- "/home/rstudio/r-spatial-course/Data/LAO_adm1.shp"
-file <- "../Data/lao_adm1.shp"
+file <- "../Data/LAO_adm1.shp"
 ( laos <- sf::st_read(file) ) # yields a data.frame
 ( laos <- sf::read_sf(file) ) # yields a tibble. This is what I personally prefer
 
