@@ -34,8 +34,8 @@ With the packages installed, let's get on our way. We'll first look how the vect
 library(sf)
 
 # in the CSC notebook, the whole filepath needs to be states: we cannot use relative notation?
-# file <- "/home/rstudio/r-spatial-course/data/LAO_adm1.shp"
-file <- "../data/lao_adm1.shp"
+# file <- "/home/rstudio/r-spatial-course/Data/LAO_adm1.shp"
+file <- "../Data/lao_adm1.shp"
 ( laos <- sf::st_read(file) ) # yields a data.frame
 ( laos <- sf::read_sf(file) ) # yields a tibble. This is what I personally prefer
 
@@ -47,7 +47,7 @@ We also have an excel sheet with data on Laotian villages which includes coordin
 ```{r}
 library(readxl)
 
-villages <- readxl::read_xlsx("../data/WPI_Laos_2011_v3.xlsx")
+villages <- readxl::read_xlsx("../Data/WPI_Laos_2011_v3.xlsx")
 villages <- sf::st_as_sf(villages, coords = c("lon", "lat"), crs = 4326)
 
 plot(villages)
@@ -59,7 +59,7 @@ With the conversion done, let's save the data in a spatial format so that we don
 need to do the conversion again, but we could just read in the with {sf}.
 
 ```{r}
-sf::st_write(villages, "../data/villages.gpkg")
+sf::st_write(villages, "../Data/villages.gpkg")
 ```
 
 ## Using {dplyr} verbs with {sf}
