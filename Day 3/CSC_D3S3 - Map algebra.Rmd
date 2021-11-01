@@ -107,7 +107,7 @@ library(ggplot2)
 library(tidyr)
 
 data <- tidyr::gather(zonal_rainfall, month, rainfall, -mean) %>% 
-    mutate(month = rep(1:120, each = 5),
+    mutate(month = rep(1:120, each = 4),
            zone = factor(mean))
 
 ggplot(data) +
