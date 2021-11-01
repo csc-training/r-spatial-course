@@ -82,7 +82,8 @@ plot(temp_40km)
 We can also disaggregate - but the original values cannot be returned!
 
 ```{r}
-temp_10km <- terra::disagg(temp_40km, fact = 4, method = "bilinear")
+# temp_10km <- terra::disagg(temp_40km, fact = 4, method = "bilinear")
+temp_10km <- disaggregate(temp_40km, fact = 4, method = "bilinear")
 temp_10km
 
 temp_difference <- temp_10km - temperature
