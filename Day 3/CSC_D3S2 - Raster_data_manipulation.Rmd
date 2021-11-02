@@ -224,6 +224,10 @@ terra::writeRaster(temperature_classified,
 * Choose a municipality from the municipality dataset (larger municipalities are better). Crop the temperature raster stack to that municipality.
 * find the mean, min, and max temperatures for that municipality over the period 2005-2014 (the full raster stack)
 
+```{r}
+
+```
+
 
 2. 
 
@@ -232,10 +236,18 @@ terra::writeRaster(temperature_classified,
 * Plot the rasters - do you see large differences? Compute the difference between the rasters, and plot that too.
 
 
+```{r}
+
+```
+
+
 3. 
 
 * Reclassify both rasters using just two classes: *hot* and *cold*. Where are the hot and cold parts of the municipality?
 
 
+```{r}
+
+```
 
 

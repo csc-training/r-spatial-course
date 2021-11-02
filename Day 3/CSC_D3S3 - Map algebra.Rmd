@@ -172,7 +172,7 @@ remember: for CSC notebooks  replace ".." with "/home/rstudio/r-spatial-course"
 
 2. 
 
-* Create a zone (rasterize)for a munucipality of your choosing (bigger ones better - use only that municipality polygon when rasterizing)
+* Create a zone (rasterize) for a munucipality of your choosing (bigger ones better - use only that municipality polygon when rasterizing)
 * Compute some zonal statistics for that municipality.
 
 ```{r}
