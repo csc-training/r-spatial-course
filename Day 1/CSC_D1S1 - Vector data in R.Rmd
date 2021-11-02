@@ -36,7 +36,7 @@ library(sf)
 # in the CSC notebook, the whole filepath needs to be states: we cannot use relative notation?
 # file <- "/home/rstudio/r-spatial-course/Data/LAO_adm1.shp"
 file <- "../Data/LAO_adm1.shp"
-( laos <- sf::st_read(file) ) # yields a data.frame
+laos <- sf::st_read(file) # yields a data.frame
 ( laos <- sf::read_sf(file) ) # yields a tibble. This is what I personally prefer
 
 plot(laos)
@@ -48,7 +48,12 @@ We also have an excel sheet with data on Laotian villages which includes coordin
 library(readxl)
 
 villages <- readxl::read_xlsx("../Data/WPI_Laos_2011_v3.xlsx")
+villages
 villages <- sf::st_as_sf(villages, coords = c("lon", "lat"), crs = 4326)
+
+villages
+
+names(villages)
 
 plot(villages)
 
@@ -70,6 +75,8 @@ As mentioned earlier, one of the main advantages of 'sf' over the older 'sp' is 
 ```{r}
 ( villages %>% 
     dplyr::select(PovertyRate, LiteracyRate, prov_name) ) 
+
+dplyr::select(villages, PovertyRate, LiteracyRate, prov_name)
 ```
 
 
@@ -108,7 +115,10 @@ We might, however, want to see the summary for each province rather than have th
                      Avg_poverty = mean(PovertyRate),
                      Min_literacy = min(LiteracyRate),
                      Max_literacy = max(LiteracyRate),
-                     Range_literacy = Max_literacy - Min_literacy) )  
+                     Range_literacy = Max_literacy - Min_literacy) %>%  
+    plot() )  
+
+
 ```
 
 
@@ -148,14 +158,18 @@ We sometimes may wish to add features to an existing set. For that, we need both
 
 ```{r}
 coord_matrix <- rbind(c(1.5,1.5), c(1.5,2.5), c(2.5,2.5), c(2.5,1.5))
+coord_matrix
 ( line <- sf::st_linestring(coord_matrix) )
 ```
 
 ```{r}
 polygon_border <- rbind(c(0,0), c(0,3), c(3,3), c(3,0), c(0,0))
+polygon_border
 ( polygon <- sf::st_polygon(list(polygon_border)) )
 
+
 polygon_hole <- rbind(c(1,1), c(1,2), c(2,2), c(2,1), c(1,1))
+polygon_hole
 ( polygon_with_hole <- sf::st_polygon( list(polygon_border, polygon_hole)) )
 ```
 
@@ -208,12 +222,14 @@ polygon_sfc <- sf::st_sfc(polygon_with_hole)
 col_sfc <- sf::st_sfc(point, line, polygon_with_hole)
 
 ( geom <- c(point_sfc, line_sfc, polygon_sfc) )
+geom
 ```
 
 
 A simple features object ('sf') is created when attributes are attached to the geometries. Let's add a unique ID to our 3 features and a category attribute:
 ```{r}
 attributes <- data.frame(ID = 1:3, cat = c("tree", "path", "house"))
+attributes
 
 ( objects <- sf::st_sf(attributes, geometry = geom) )
 ```
@@ -227,6 +243,7 @@ new_feature <- sf::st_point(c(1,1)) %>%
   dplyr::mutate(ID = 4,
          cat = "human")
 
+new_feature
 ( objects <- rbind(objects, new_feature) )
 
 plot(objects)
@@ -247,7 +264,9 @@ Write out commands which
 * *filter* those villages which have a value higher than 50 in one of your selected variables
 
 ```{r}
-
+read_sf("../Data/villages.gpkg") %>%
+    dplyr::select(vil_id, HumanFootprint, IncomeDependency) %>%
+    dplyr::filter(IncomeDependency > 50)
 ```
 
 2.
@@ -257,7 +276,10 @@ Write out commands which
 * *group by* HFP and *summarise* mean HumanFootprint 
 
 ```{r}
-
+villages %>% 
+  mutate(HFP = ifelse( HumanFootprint > mean(HumanFootprint), 1, 0) ) %>% 
+  group_by(HFP) %>% 
+  summarise(mean(HumanFootprint))
 ```
 
 3.
@@ -269,6 +291,18 @@ Write out commands which
 * Attach the new point to the five villages you filtered earlier.
 
 ```{r}
+five_villages <- select(villages, vil_id) %>% 
+  dplyr::slice(1:5)
+
+five_villages
+
+new_point <- st_point(c(1,1)) %>% 
+  st_sfc() %>% 
+  st_sf() %>% 
+  mutate(vil_id = 1) %>% 
+  st_set_crs( st_crs(five_villages) )
+
+rbind(five_villages, new_point)
 
 ```
 

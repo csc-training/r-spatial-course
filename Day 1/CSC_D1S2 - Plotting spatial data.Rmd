@@ -54,10 +54,10 @@ Now let's try with some real data.
 villages <- sf::read_sf("../Data/villages.gpkg")
 
 plot(villages)
-plot(villages, max.plot=3)
+plot(villages, max.plot=44)
 plot(villages[,"PovertyRate"])
 plot(villages[,"prov_name"])
-plot(sf::st_geometry(villages))
+plot(sf::st_geometry(villages), col = "red", cex = 0.2)
 ```
 
 There are a large number of options available to control the plot. To find them all, type help("plot.sf") to the console. Here's an example of adding a graticule.
@@ -85,7 +85,7 @@ One of the strengths of R is the wonderful visualization package *ggplot2*. We c
 
 ```{r}
 library(ggplot2)
-ggplot() + geom_sf(data = villages, size = 0.2)
+ggplot() + geom_sf(data = villages, size = 0.1)
 
 ```
 
@@ -154,7 +154,9 @@ p2 <- ggplot(villages, aes(x = PovertyRate, y = LiteracyRate)) +
 p3 <- ggplot(villages, aes(x = prov_name, y=PovertyRate)) +
   geom_boxplot()
 
-p1 | (p2/p3)
+p1 | (p2/p3) + patchwork::plot_layout(guides = "collect")
+
+p1 | p2 | p3
 
 ```
 
@@ -200,11 +202,26 @@ villages <- read_sf("../Data/villages.gpkg")
 admin <- read_sf("../Data/LAO_adm1.shp")
 rivers <- read_sf("../Data/rivers.gpkg")
 
+ggplot() +
+    geom_sf(data = admin, fill = "transparent") + 
+    geom_sf(data = rivers, lty = 2, col = "darkblue") + 
+    geom_sf(data = villages, aes(size = IncomeDependency))
+
+
 ```
 
 2. Create another map zooming into one full province. Hint: Use *filter* to pick one province, and get the bounding box using function *st_bbox()*.
 
 ```{r}
+bbox <- admin %>% 
+    dplyr::filter(NAME_1 == "Vientiane_Capital") %>% 
+    st_bbox()
+bbox
 
+ggplot() +
+    geom_sf(data = admin, fill = "transparent") + 
+    geom_sf(data = rivers, lty = 2) + 
+    geom_sf(data = villages, size = 0.1) +
+    coord_sf(xlim = c(bbox[1],bbox[3]), ylim = c(bbox[2],bbox[4]))
 ```
 

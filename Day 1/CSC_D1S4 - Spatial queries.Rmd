@@ -155,6 +155,18 @@ villages %>%
 * plots the buffer and the villages
 
 ```{r}
+villages <- sf::read_sf("../Data/villages.gpkg") %>% 
+    st_transform(32648)
+
+buffer <- villages %>% 
+  slice(1000) %>% 
+  st_buffer(50000) %>% 
+  mutate(., 
+         n = sum(st_intersects(., villages, sparse = FALSE)))
+
+ggplot() +
+  geom_sf(data = buffer) + 
+  geom_sf(data = st_intersection(buffer, villages))
 
 ```
 
@@ -165,5 +177,14 @@ villages %>%
 ```{r}
 random_villages <- villages %>%
   sample_n(100) # take random sample
+
+buffer <- random_villages %>% 
+  st_buffer(50000) %>% 
+  mutate(., 
+         n = rowSums(st_intersects(., villages, sparse = FALSE)))
+
+ggplot() +
+  geom_sf(data = buffer, aes(fill = n)) + 
+  geom_sf(data = st_intersection(buffer, villages), size = 0.05)
 ```
 
