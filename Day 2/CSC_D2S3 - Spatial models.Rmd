@@ -27,7 +27,9 @@ set.seed(20210102) # for reproducibility
 # for CSC notebooks  replace ".." with "/home/rstudio/r-spatial-course"
 villages <- sf::read_sf("../Data/villages.gpkg") %>% 
     sf::st_transform(32648) %>% 
-    dplyr::sample_n(500)
+    dplyr::sample_n(500) %>% 
+  arrange(vil_id)
+villages
 
 # for CSC notebooks  replace ".." with "/home/rstudio/r-spatial-course"
 admin <- sf::read_sf("../Data/LAO_adm1.shp") %>% 
@@ -39,21 +41,24 @@ vil_voronoi <- villages %>%
       sf::st_cast() %>% 
       sf::st_sf() %>% 
       sf::st_join(villages) %>% 
-      sf::st_intersection(st_union(admin))
+      sf::st_intersection(st_union(admin)) %>% 
+  arrange(vil_id)
 
 
 # create 'listw' (weight list) object from point distance matrix  
 dmat <- 1/sf::st_distance(villages) %>% 
   unclass() 
 diag(dmat) <- 0 # set matrix diagonal as 0
+dmat <- dmat^2
 dmat_listw <- spdep::mat2listw(dmat, style = "W")
 
 vil_data <- villages %>% sf::st_set_geometry(NULL)
+vil_data
 ```
 
 
 ```{r}
-sar <- spdep::lagsarlm(wWPI.bPCA.scaled ~ PovertyRate + LiteracyRate + HumanFootprint, 
+sar <- spatialreg::lagsarlm(wWPI.bPCA.scaled ~ PovertyRate + LiteracyRate + HumanFootprint, 
          data=vil_data, 
          dmat_listw)
 summary(sar)
@@ -107,6 +112,12 @@ The spatial patterns seems to be off somewhat.
 ```{r message=FALSE, warning=FALSE}
 vil_gwr
 
+vil_gwr$SDF$PovertyRate
+
+
+vil_voronoi$coef <- vil_gwr$SDF$PovertyRate
+plot(vil_voronoi[,"coef"])
+
 ```
 
 
@@ -137,6 +148,24 @@ Resulting object from GWR contains a lot of useful information:
 
 ```{r}
 
+villages_sp <- sf::read_sf("../Data/villages.gpkg") %>% 
+    sf::st_transform(32648) %>% 
+    dplyr::sample_n(500) %>% 
+  as("Spatial")
+
+dmat <- gw.dist(dp.locat=coordinates(villages_sp))
+bw <- bw.gwr(PovertyRate ~ wACC + wCAP + wENV + wUSE, villages_sp, kernel = "gaussian")
+
+vil_gwr <- gwr.basic(PovertyRate ~  wACC + wCAP + wENV + wUSE, villages_sp, kernel = "gaussian", bw = bw, dMat = dmat)
+
+villages_sf <- st_as_sf(villages_sp)
+
+villages_sf$residuals <- vil_gwr$SDF$residual
+
+plot(villages_sf[,"residuals"])
+
+vil_gwr
+
 ```
 
 
@@ -146,5 +175,21 @@ Resulting object from GWR contains a lot of useful information:
 
 ```{r}
 
+# create 'listw' (weight list) object from point distance matrix  
+dmat <- 1/sf::st_distance(villages_sf) %>% 
+  unclass() 
+diag(dmat) <- 0 # set matrix diagonal as 0
+dmat <- dmat^2
+dmat_listw <- spdep::mat2listw(dmat, style = "W")
+
+vil_data <- villages_sf %>% sf::st_set_geometry(NULL)
+
+
+sar <- spatialreg::lagsarlm(PovertyRate ~ wACC + wCAP + wENV + wUSE, 
+         data=vil_data, 
+         dmat_listw)
+summary(sar)
+
+cor(villages$PovertyRate, sar$fitted.values)^2
 ```
 
