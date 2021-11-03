@@ -33,16 +33,18 @@ library(paletteer)
 
 side <- 15
 empty_mat <- matrix(0, nrow = side, ncol = side)
+empty_mat
 
 mat1 <- empty_mat
 for(i in 1:side) {
     mat1[,i] <- i
 }
-
 # look at the matrix, convert it to a raster and plot the raster
 mat1
-r1 <- terra::rast(mat1)
+r1 <- terra::rast(t(mat1))
+r1
 terra::ext(r1) <- c(0,side,0,side) # set extent
+r1
 plot(r1)
 ```
 
@@ -53,7 +55,7 @@ Let's do another kind of raster, this time filled with random numbers.
 mat2 <- matrix(runif(length(empty_mat),0,10), nrow=side, ncol=side)
 r2 <- terra::rast(mat2)
 terra::ext(r2) <- c(0,side,0,side) # set extent
-plot(r2, col = paletteer::paletteer_c("grDevices::Viridis", 10))
+plot(r2, col = paletteer::paletteer_c("grDevices::Viridis", 100))
 ```
 
 
@@ -81,6 +83,7 @@ r1^2
 1 / r1
 
 stack <- c(r1, r1+5, r1^2, 1/r1)
+stack
 names(stack) <- c("add 5", "square root", "square", "division")
 plot(stack)
 
@@ -98,11 +101,12 @@ Let's read in the elevation model of Finland included in the data and inspect it
 elevation <- terra::rast("../Data/raster/Elevation_10km.tif")
 
 summary(elevation)
-ext(elevation) # this is the boundinx box of the raster
+ext(elevation) # this is the bounding box of the raster
 plot(elevation, col = paletteer::paletteer_c("viridis::viridis", 100))
 
 elevation[elevation == 0] <- NA
 plot(elevation, col = paletteer::paletteer_c("viridis::viridis", 100))
+summary(elevation)
 ```
 
 We can compute statistics from the elevation layer using *global()* function.
@@ -114,6 +118,7 @@ global(elevation, median, na.rm=TRUE)
 global(elevation, range, na.rm=TRUE)
 global(elevation, sd, na.rm=TRUE) 
 
+plot(stack)
 global(stack, mean)
 
 ```
@@ -131,6 +136,15 @@ remember: for CSC notebooks  replace ".." with "/home/rstudio/r-spatial-course"
 * plot a histogram using *hist()*
 
 ```{r}
+t01 <- rast("../Data/raster/Tmean_Monthly_2005-2014/Tmon_20050101.tif")
+t07 <- rast("../Data/raster/Tmean_Monthly_2005-2014/Tmon_20050701.tif")
+t10 <- rast("../Data/raster/Tmean_Monthly_2005-2014/Tmon_20051001.tif")
+
+t <- c(t01, t07, t10)
+
+global(t, mean, na.rm=TRUE)
+
+
 
 ```
 
@@ -142,6 +156,13 @@ remember: for CSC notebooks  replace ".." with "/home/rstudio/r-spatial-course"
 
 
 ```{r}
+plot(t)
+
+brk <- seq(-11,20, length.out = 10)
+brk
+
+plot(t, col = paletteer_c("scico::turku", 100), breaks = brk)
+
 
 ```
 

@@ -46,6 +46,7 @@ Let's run a linear model looking at the changes in temperature and rainfall in 2
 ### Define functions to fit a model and extract relevant information ###
 # For obtaining estimated model coefficients
 fun_model <- function(x) { 
+    
     if(all(is.na(x))) return(c(NA,NA,NA,NA))
     
     n <- 1:length(x)
@@ -58,6 +59,7 @@ fun_model <- function(x) {
 }
 
 rainfall_coef <- terra::app(rainfall, fun = fun_model)
+rainfall_coef
 names(rainfall_coef) <- c("Intercept", "Slope", "p_int", "p_slope")
 plot(rainfall_coef)
 
@@ -73,11 +75,11 @@ Let's look at the trend in a single month, February.
 
 
 ```{r}
-
-
 subset_vect <- seq(2, by = 12, length.out = 10)
-feb_temp <- subset(temperature, subset = subset_vect)
-feb_rain <- subset(rainfall, subset = subset_vect)
+subset_vect
+
+feb_temp <- terra::subset(temperature, subset = subset_vect)
+feb_rain <- terra::subset(rainfall, subset = subset_vect)
 
 
 rainfall_coef <- terra::app(feb_rain, fun = fun_model)
@@ -103,7 +105,7 @@ model_data <- as.data.frame(temperature_coef,
     dplyr::as_tibble()
 
 summary(model_data)
-
+model_data
 ```
 
 
@@ -119,10 +121,13 @@ july2011 <- temperature[["Tmon_20110701"]]
 july2011 <- terra::project(july2011, elevation, method = "near")
 
 stack <- c(july2011, elevation)
+plot(stack)
 
 data <- terra::as.data.frame(stack, xy = TRUE)
-trainset <- sample(1:nrow(data), floor(nrow(data)*0.75)) %>% 
+data
+trainset <- sample(1:nrow(data), floor(nrow(data)*0.50)) %>% 
     sort()
+trainset
 
 model_fit <- lm(Tmon_20110701 ~ x + y + Elevation_10km, data = data[trainset, ])
 
@@ -132,29 +137,52 @@ summary(model_fit) # very good!
 # Evaluate with the trainig data
 prediction <- predict(model_fit, newdata = data[-trainset, ])
 
-cor(prediction, data$Tmon_20110701[-trainset])
+cor(prediction, data$Tmon_20110701[-trainset])^2
 
 ```
 
 With a model fitted, we can apply this to a raster stack. But before that, we need to get x and y coordinate rasters in the stack. We can *rasterize* a point data set for that.
 
 ```{r}
-xy_raster <- data %>% 
-    dplyr::mutate(x_coord = x,
-           y_coord = y) %>% 
-    terra::vect(geom = c("x_coord", "y_coord")) %>% 
-    terra::rasterize(july2011, field = c("x", "y"))
+
+# xy_raster <- data %>% 
+#     dplyr::mutate(x_coord = x,
+#            y_coord = y) %>% 
+#     terra::vect(geom = c("x_coord", "y_coord")) %>%
+#     terra::rasterize(july2011, field = c("x", "y"))
+
+temp <- stack
+values(temp) <- 1
+coords <- terra::crds(temp)
+head(coords)
+
+x_raster <- matrix(coords[,1], ncol = ncol(temp), byrow=TRUE) %>% 
+    terra::rast() 
+plot(x_raster)
+
+y_raster <- matrix(coords[,2], ncol = ncol(temp), byrow=TRUE) %>% 
+    terra::rast()
+plot(y_raster)
+x_raster
+
+crs(x_raster) <- crs(stack)
+crs(y_raster) <- crs(stack)
+
+ext(x_raster) <- ext(stack)
+ext(y_raster) <- ext(stack)
+x_raster
+
+xy_raster <- c(x_raster, y_raster)
 names(xy_raster) <- c("x", "y")
 
 
 
 prediction_stack <- c(xy_raster, stack)
+prediction_stack
 prediction_raster <- terra::predict(prediction_stack, model_fit)
 
 
 plot(c(prediction_raster, july2011))
-
-
 
 ```
 
@@ -182,10 +210,12 @@ points(random_points)
 # extract data and fit a model
 fitting_data <- terra::extract(stack, random_points, xy = TRUE) %>% 
     dplyr::filter(!is.nan(Tmon_20110701))
+fitting_data
 
 model_fit_points <- lm(Tmon_20110701 ~ x + y + Elevation_10km, 
                        data = fitting_data)
-
+summary(model_fit_points)
+stack
 
 prediction_interpolated <- terra::interpolate(stack, model_fit_points)
 
@@ -193,7 +223,7 @@ plot(prediction_interpolated)
 points(random_points)
 
 
-plot(c(prediction_raster, prediction_interpolated, july2011))
+plot(c(prediction_interpolated, july2011))
 ```
 
 
@@ -208,11 +238,39 @@ plot(c(prediction_raster, prediction_interpolated, july2011))
 * **predict**
 * plot
 
+### CTRL + ALT + i
+```{r}
+
+
+lakes <- project(lakes, prediction_stack, method = "near")
+
+prediction_stack <- c(lakes, prediction_stack)
+
+data_update <- as.data.frame(prediction_stack, xy = TRUE)
+
+trainset <- sample(1:nrow(data_update), floor(nrow(data_update)*0.75)) %>% sort()
+
+model_fit <- lm(Tmon_20110701 ~ x + y + Elevation_10km + Lake_10km, data = data_update[trainset, ])
+
+predicted <- predict(prediction_stack, model_fit)
+
+plot(predicted)
+```
+
 
 2. 
 
 * Extract values from prediction raster, and july2011
 * compute correlation and mean error (*pred - obs*)
-* plot a scatterplot with july2011 values on x-axis, and mean error on y-axis.
+* plot a scatterplot with july2011 values on x-axis, and error on y-axis.
 
+```{r}
+
+cor( values(predicted), values(july2011), use = "complete.obs")
+
+mean(values(predicted) - values(july2011) , na.rm=TRUE)
+
+plot( values(july2011),  values(predicted) - values(july2011) )
+abline(a=0, b=0, col="red")
+```
 
