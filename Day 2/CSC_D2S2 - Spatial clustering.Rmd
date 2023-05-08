@@ -15,7 +15,7 @@ Clustering is the grouping of observations to groups in which the observations a
 
 No training or testing data is needed, unlike in supervised multivariate methods. In addition to non-spatial data, clustering can be applied, for example, to points, raster cells, polygons and trajectories.
 
-There are many clustering algorithms available. In here, we have a brief look at k-means, DBSCAN and SKATER methods.
+There are many clustering algorithms available. In here, we have a brief look at k-means how one might "spatialize" k-means.
 
 ## K-means clustering
 
@@ -37,20 +37,18 @@ library(ggplot2)
 
 
 # load some data
-# for CSC notebooks  replace ".." with "/home/rstudio/r-spatial-course"
-admin <- sf::read_sf("../Data/LAO_adm1.shp") %>% 
+admin <- sf::read_sf("../data/LAO_adm1.shp") %>% 
   sf::st_transform(32648)
 
 # Village data
-# for CSC notebooks  replace ".." with "/home/rstudio/r-spatial-course"
-villages <- sf::read_sf("../Data/villages.gpkg") %>% 
+villages <- sf::read_sf("../data/villages.gpkg") %>% 
   sf::st_transform(32648) %>% 
   dplyr::select(vil_id, dRES, dACC, dCAP, dUSE, dENV) %>% 
   dplyr::arrange(vil_id)
 
 # The voronoi we read from a file to save time. The voronoi were computed as below:
-# for CSC notebooks  replace ".." with "/home/rstudio/r-spatial-course"
-voronoi <- read_sf("../Data/village_voronoi.gpkg")
+
+voronoi <- read_sf("../data/village_voronoi.gpkg")
 # voronoi <- sf::st_union(villages) %>%
 #   sf::st_voronoi() %>% 
 #   sf::st_cast() %>% 
@@ -62,8 +60,6 @@ voronoi <- read_sf("../Data/village_voronoi.gpkg")
 
 data <- sf::st_set_geometry(villages, NULL) 
 
-villages
-data
 ```
 
 
@@ -85,13 +81,11 @@ data <- dplyr::select(data, -vil_id)
 # 4 clusters, with a maximum of 100 iterations
 clusters <- kmeans(data, 4, iter.max = 100)
 
-library(ggplot2)
-install.packages("inlmisc")
 voronoi$cluster <- factor(clusters$cluster)
 p1 <- ggplot(voronoi) + 
   geom_sf(aes(fill = cluster), color = "transparent") +
-  geom_sf(data = admin, fill = "transparent", colour = "black") #+
-  # scale_fill_manual(name="Cluster", values = inlmisc::GetColors(4))
+  geom_sf(data = admin, fill = "transparent", colour = "black") +
+  scale_fill_manual(name="Cluster", values = inlmisc::GetColors(4))
 p1
 ```
 
@@ -115,7 +109,7 @@ joincount.test(factor(voronoi$cluster[sample]), dmat_listw, alternative = "two.s
 ```
 
 
-In addition to the spatial distribution of the clusters, we want to know what the clusters tell us. We could inspect for istance a boxplot of each cluster and each variable. 
+In addition to the spatial distribution of the clusters, we want to know what the clusters tell us. We could inspect for instance a boxplot of each cluster and each variable. 
 ```{r message=FALSE, warning=FALSE}
 plotdata <- tibble::add_column(data, cluster = clusters$cluster)
 
@@ -150,11 +144,11 @@ scale_coords <- function(sf) {
   
   scaledy <- coords[,1]
   scaledy <- scaledy - min(scaledy)
-  scaledy <- scaledy/max(scaledy)*50
+  scaledy <- scaledy/max(scaledy)*100
   
   scaledx <- coords[,2]
   scaledx <- scaledx - min(scaledx)
-  scaledx <- scaledx/max(scaledx)*50
+  scaledx <- scaledx/max(scaledx)*100
   
   coords[,1] <- scaledx
   coords[,2] <- scaledy
@@ -170,14 +164,13 @@ data$Y <- coords[,"Y"]
 summary(data)
 
 # cluster again
-set.seed(1000)
 clusters <- kmeans(data, 4, iter.max = 100)
 
 voronoi$cluster_XY <- factor(clusters$cluster)
 p2 <- ggplot(voronoi) + 
   geom_sf(aes(fill = cluster_XY), color = "transparent") +
-  geom_sf(data = admin, fill = "transparent", colour = "black") #+
-  # scale_fill_manual(name="Cluster_XY", values = inlmisc::GetColors(4))
+  geom_sf(data = admin, fill = "transparent", colour = "black") +
+  scale_fill_manual(name="Cluster_XY", values = inlmisc::GetColors(4))
 p2
 
 # BOXPLOT
@@ -225,15 +218,14 @@ scaled_dist <- function(sf, scale_range = NULL) {
 # the distance computed in the data matrix are then multiplied by the scaled
 # geographical distance.
 # --> compute distances the upper range defines the importance of geography. 
-dmat <- scaled_dist(villages, scale_range = c(5,10))
+dmat <- scaled_dist(villages, scale_range = c(1,10))
 
 
 # ------------------------------------------------------------------------------
 # hierarchical clustering with scaled distance metric
 clusters <- hclust(dmat, method = "complete")
 
-plot(clusters)
-clusters_cut <- cutree(clusters, k=4)
+clusters_cut <- cutree(clusters, k=6)
 
 # number of points in each cluster
 print(table(clusters_cut))
@@ -242,8 +234,8 @@ print(table(clusters_cut))
 voronoi$cluster_scaled <- factor(clusters_cut)
 p3 <- ggplot(voronoi) + 
   geom_sf(aes(fill = cluster_scaled), color = "transparent") +
-  geom_sf(data = admin, fill = "transparent", colour = "black") #+
-  # scale_fill_manual(name="Cluster_scaled", values = inlmisc::GetColors(6))
+  geom_sf(data = admin, fill = "transparent", colour = "black") +
+  scale_fill_manual(name="Cluster_scaled", values = inlmisc::GetColors(6))
 p3
 ```
 
@@ -272,31 +264,6 @@ Exercises
 
 7. Do the same as above, but using hierarchical clustering and compute the distance matrix with the *scaled_dist()* function we defined earlier.
 
-```{r}
-villages <- read_sf("../Data/villages.gpkg") %>% 
-  filter(prov_name == "Savannakhet") %>% 
-  select(LiteracyRate, PovertyRate, IncomeDependency)
-
-data <- st_set_geometry(villages, NULL)
-
-clusters <- kmeans(data, 4)
-
-villages <- mutate(villages,
-                   cluster = factor(clusters$cluster))
-
-p1 <- ggplot(villages) +
-  geom_sf(aes(color = cluster))
-
-# BOXPLOT
-data <- select(data, -cluster)
-plotdata <- tibble::add_column(data, cluster = factor(clusters$cluster))
-plotdata <- tidyr::gather(plotdata, variable, value, -cluster)
-
-p2 <- ggplot(plotdata, aes(x = variable, y = value, fill = cluster)) + 
-  geom_boxplot()
-
-p1 | p2
-```
 
 
 

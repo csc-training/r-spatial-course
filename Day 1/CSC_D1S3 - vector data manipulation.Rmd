@@ -28,12 +28,8 @@ library(mapview)
 ```
 
 ```{r message=FALSE, warning=FALSE}
-# for CSC notebooks "/home/rstudio/r-spatial-course/"
-# basins <- sf::read_sf("/home/rstudio/r-spatial-course/Data/basins.gpkg") %>%
-#     sf::st_set_crs(4326)
-basins <- sf::read_sf("../Data/basins.gpkg") %>%
+basins <- sf::read_sf("../data/basins.gpkg") %>%
     sf::st_set_crs(4326)
-basins
 
 plot(basins, max.plot=3)
 mapview::mapview(basins)
@@ -82,14 +78,7 @@ There are still some packages around which do not support {sf}, but use the olde
 
 ```{r}
 basins_sp <- as(basins, "Spatial")
-basins_sp
-
 basins_sf <- sf::st_as_sf(basins_sp)
-basins_sf
-
-all.equal(basins, basins_sf)
-class(basins_sf)
-class(basins)
 ```
 
 
@@ -98,9 +87,8 @@ class(basins)
 Unlike many graphical GIS programs (e.g. ArcGIS, QGIS), R cannot transform objects on the fly. Therefore, having all data in the same CRS is important. Luckily, functions in {sf} package will give an error if the CRS of input objects is not identical. Inspecting the CRS of an object can be done with *st_crs()* function. Here we load "rivers.gpkg", which is a subset of HydroSheds river network, derived from 15 arc second DEM.
 
 ```{r}
-# for CSC notebooks  replace ".." with "/home/rstudio/r-spatial-course"
-basins <- sf::read_sf("../Data/basins.gpkg", quiet = TRUE)
-rivers <- sf::read_sf("../Data/rivers.gpkg", quiet = TRUE)
+basins <- sf::read_sf("../data/basins.gpkg", quiet = TRUE)
+rivers <- sf::read_sf("../data/rivers.gpkg", quiet = TRUE)
 sf::st_crs(basins)
 sf::st_crs(rivers)
 
@@ -114,7 +102,7 @@ If we know the CRS of our data, but it is missing from the object, we can set it
 ```{r message=FALSE, warning=FALSE}
 # using EPSG SRID
 basins <- sf::st_set_crs(basins, 4326)
-basins
+
 # using proj.4 string
 basins <- sf::st_set_crs(basins, "+init=epsg:4326")
 # basins <- sf::st_set_crs(basins, "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs")
@@ -132,7 +120,7 @@ Coordinate transformations are likewise easy to achieve using *st_transform()* f
 
 ```{r}
 basins <- sf::st_transform(basins, 32648) 
-basins
+
 # can also transform directly to the CRS of another object:
 # basins <- sf::st_transform(basins, st_crs(rivers)) 
 
@@ -150,15 +138,14 @@ Here we create major basins from smaller ones by creating a union of the small g
 
 ```{r message=FALSE, warning=FALSE}
 # The provided st_union() function creates a union of all geometries in the input
-( major_basins <- sf::st_union(basins) )
-plot(major_basins)
+( major_basins <- st_union(basins) )
 
 # dissolve to major basins again:
 major_basins <- basins %>% 
     dplyr::group_by(MAIN_BAS) %>% 
-    dplyr::summarize(total_area = sum(SUB_AREA))
+    dplyr::summarize()
 plot(major_basins)
-major_basins
+
 ```
 
 
@@ -169,17 +156,19 @@ major_basins
 
 With the dissolved major basins, we can try simplification using st_simplify(). It operates on each individual geometry separately, and thus does not preserve uniform polygon borders. For polygon feature sets which share borders, we could use function ms_simplify() from 'rmapshaper' package.
 
+NOTE 2023: ms_simplify() from 'rmapshaper' does not currently work, results in error.
+It will likely be soon fixed.
+
 ```{r message=FALSE, warning=FALSE}
 # st_simplify() takes toleranse in the units of CRS. In our case it is UTM, so the unit is meters.
-simplified_st <- sf::st_simplify(major_basins, dTolerance = 10000,
-                                 preserveTopology = TRUE)
+simplified_st <- sf::st_simplify(major_basins, dTolerance = 10000)
 plot(simplified_st)
 
-# st_simplify() 
-library(rmapshaper, quietly = TRUE)
+
+# library(rmapshaper, quietly = TRUE)
 # keep 1% of nodes. keep_shapes prevents small polygons from disappearing at high simplification
-simplified_ms <- rmapshaper::ms_simplify(major_basins, keep = 0.01, keep_shapes=TRUE)
-plot(simplified_ms)
+# simplified_ms <- rmapshaper::ms_simplify(major_basins, keep = 0.01, keep_shapes=TRUE)
+# plot(simplified_ms)
 ```
 
 
@@ -218,7 +207,6 @@ Variable buffer are also possible by giving the input argument dist a vector of 
 # random buffer distances
 buf_dist <- nrow(major_basins) %>% 
     runif(10000, 30000)
-buf_dist
 
 # sf
 varbuf_sf <- major_basins %>%
@@ -256,8 +244,7 @@ plot(grid_sf)
 Say we were interested in villages in a specific river basin. We can take an intersection of villages within that basin. First, let's load the villages from the file, and then inspect it together with the basins.
 
 ```{r message=FALSE, warning=FALSE}
-# for CSC notebooks  replace ".." with "/home/rstudio/r-spatial-course"
-villages <- sf::read_sf("../Data/villages.gpkg") %>%
+villages <- sf::read_sf("../data/villages.gpkg") %>%
     sf::st_transform(32648)
 
 map <- mapview::mapview(villages) + basins
@@ -266,11 +253,11 @@ map
 #select a basin and get all villages intersecting
 ( vil_sel <- dplyr::filter(basins, HYBAS_ID == 4061080120) %>%
     sf::st_intersection(villages) )
-names(vil_sel)
+
 # If we only want HYBAS_ID from the basins data frame:
 ( vil_sel <- basins %>% 
+    dplyr::select(HYBAS_ID) %>% 
     dplyr::filter(HYBAS_ID == 4061080120) %>%
-        dplyr::select() %>% 
     sf::st_intersection(villages) )
 
 # we can use pipes inside functions as well
@@ -291,76 +278,47 @@ Clipping can be done with st_intersection as well. However, for proper clipping 
 # Does not clip proper
 grid_clip <- sf::st_intersection(grid_sf, basins)
 plot(grid_clip, max.plot=2)
-plot(basins)
 
 # Clips proper
-grid_clip <- sf::st_intersection(grid_sf, sf::st_union(basins))
+grid_clip <-sf:: st_intersection(grid_sf, st_union(basins))
 plot(grid_clip, max.plot=2)
-grid_clip
 ```
 
-```{r}
-## Franziska
-
-st_crs(villages)
-st_crs(basins)
-
-villages <- st_transform(villages, 32648)
-basins <- st_transform(basins, 32648)
-```
 
 
 ## Exercises
 
-1. Load Laos' admin areas, and *st_transform* admin to *"+proj=aea +lat_1=13 +lat_2=22"* coordinate system (Albers Equal Area Projection). plot it.
+1. Load districts (KaupunginosajakoPolygon.shp), and *st_transform* admin to *"EPSG:3067"* coordinate system. ggplot it.
 
 ```{r}
-read_sf("../Data/LAO_adm1.shp") %>% 
-  st_transform("+proj=aea +lat_1=13 +lat_2=22") %>% 
-  plot()
+
 ```
 
 
 2. 
 
-* *Select* NAME_1 attribute from admin areas, and MAIN_BAS from major basins. 
-* Transform admin areas to EPSG:32648. 
-* Take an intersection between basins and admin areas. 
-* Add new attribute called area by using *st_area(geometry)* inside *mutate*.
+* *Select* nimi_fi attribute from the districts 
+* load the buildings data and select polyg_ala_m2 
+* Take an intersection between districts and buildings. 
+* Add new attribute called area by using *st_area(geometry)* (or *st_area(geom)*) inside *mutate*.
 
 ```{r}
-admin <- read_sf("../Data/LAO_adm1.shp") %>% 
-    select(NAME_1) %>% 
-    st_transform(32648)
 
-intersections <- major_basins %>% 
-    select(MAIN_BAS) %>% 
-    st_intersection(admin) %>% 
-    mutate(area = sf::st_area(geom))
-
-intersections
 ```
 
 3.
 
-* Take the intersection created in task 2. 
-* Try to find out how many river basins intersect each province. Hint: use *group_by* and *summarise*.
+* Continuing using the intersection created in task 2.
+* Try to find out how many buildings intersect each district. Hint: use *group_by* and *summarise*.
 
 ```{r}
-
-intersections %>% 
-  group_by(NAME_1) %>% 
-  summarise(dplyr::n())
 
 ```
 
-4. Find out what *st_area()* and *st_length()* do. Attach their results to a line or polygon features. You can use base R commands, *dplyr::mutate()*, or use the handy function *tibble::add_column()*.
-```{r}
-help(st_area)
-help(st_length)
 
-intersections %>%
-  st_cast("LINESTRING") %>% 
-  mutate(length = st_length(geom))
+
+4. Find out what *st_area()* and *st_length()* do. Attach their results to a polygon or line (e.g. by casting districts from polygon to linestring). You can use base R commands, *dplyr::mutate()*, or use the handy function *tibble::add_column()*.
+```{r}
+
 ```
 

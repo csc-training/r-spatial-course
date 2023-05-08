@@ -47,17 +47,13 @@ plot(point, col='black',  pch=16, cex=3, add=TRUE)
 
 Now let's try with some real data. 
 ```{r}
-# for CSC notebooks
-# villages <- sf::read_sf("/home/rstudio/r-spatial-course/Data/villages.gpkg")
-
-# for windows
-villages <- sf::read_sf("../Data/villages.gpkg")
+villages <- sf::read_sf("../data/villages.gpkg")
 
 plot(villages)
-plot(villages, max.plot=44)
+plot(villages, max.plot=3)
 plot(villages[,"PovertyRate"])
 plot(villages[,"prov_name"])
-plot(sf::st_geometry(villages), col = "red", cex = 0.2)
+plot(sf::st_geometry(villages))
 ```
 
 There are a large number of options available to control the plot. To find them all, type help("plot.sf") to the console. Here's an example of adding a graticule.
@@ -69,9 +65,7 @@ As with the geometry types, we can add many layers of {sf} objects to the plot. 
 
 Notice that when plotting {sf} objects, we must add parameter *reset = FALSE* in order to add new layers.
 ```{r}
-# for CSC notebooks  replace ".." with "/home/rstudio/r-spatial-course"
-# admin <- sf::read_sf("/home/rstudio/r-spatial-course/Data/LAO_adm1.shp")
-admin <- sf::read_sf("../Data/LAO_adm1.shp")
+admin <- sf::read_sf("../data/LAO_adm1.shp")
 
 plot(villages[,10], reset=FALSE)
 plot(sf::st_geometry(admin), add=TRUE)
@@ -85,7 +79,7 @@ One of the strengths of R is the wonderful visualization package *ggplot2*. We c
 
 ```{r}
 library(ggplot2)
-ggplot() + geom_sf(data = villages, size = 0.1)
+ggplot() + geom_sf(data = villages, size = 0.2)
 
 ```
 
@@ -154,9 +148,7 @@ p2 <- ggplot(villages, aes(x = PovertyRate, y = LiteracyRate)) +
 p3 <- ggplot(villages, aes(x = prov_name, y=PovertyRate)) +
   geom_boxplot()
 
-p1 | (p2/p3) + patchwork::plot_layout(guides = "collect")
-
-p1 | p2 | p3
+p1 | (p2/p3)
 
 ```
 
@@ -191,21 +183,13 @@ Interactive selection and editing can be done with package 'mapedit', but we wil
 
 1. 
 
-* Create a ggplot which shows admin areas, villages and rivers.
-* visualize the rivers as dashed line using parameter *lty = 2* in the geom_sf() function call.
-* give the admin areas a white or transparent *fill* colour.
-* reduce the *size* of the village dots
+* *read* in helsinki_buildings.gpkg and kaupunginosajako.gpkg from the data folder
+* Create a ggplot which shows the districts and buildings.
+* visualize districts as dashed line (*lty = 2*) in the geom_sf() function call.
+* give the districs a white or transparent *fill* colour.
+* try different *size*  and *color* for the district boundaries.
 
 ```{r}
-# for CSC notebooks  replace ".." with "/home/rstudio/r-spatial-course"
-villages <- read_sf("../Data/villages.gpkg")
-admin <- read_sf("../Data/LAO_adm1.shp")
-rivers <- read_sf("../Data/rivers.gpkg")
-
-ggplot() +
-    geom_sf(data = admin, fill = "transparent") + 
-    geom_sf(data = rivers, lty = 2, col = "darkblue") + 
-    geom_sf(data = villages, aes(size = IncomeDependency))
 
 
 ```
@@ -213,15 +197,6 @@ ggplot() +
 2. Create another map zooming into one full province. Hint: Use *filter* to pick one province, and get the bounding box using function *st_bbox()*.
 
 ```{r}
-bbox <- admin %>% 
-    dplyr::filter(NAME_1 == "Vientiane_Capital") %>% 
-    st_bbox()
-bbox
 
-ggplot() +
-    geom_sf(data = admin, fill = "transparent") + 
-    geom_sf(data = rivers, lty = 2) + 
-    geom_sf(data = villages, size = 0.1) +
-    coord_sf(xlim = c(bbox[1],bbox[3]), ylim = c(bbox[2],bbox[4]))
 ```
 

@@ -23,9 +23,8 @@ First let's load {sf}, data and create the grid.
 ```{r}
 library(sf)
 library(dplyr)
-# for CSC notebooks  replace ".." with "/home/rstudio/r-spatial-course"
-villages <- read_sf("../Data/villages.gpkg")
-basins <- read_sf("../Data/basins.gpkg") %>% 
+villages <- read_sf("../data/villages.gpkg")
+basins <- read_sf("../data/basins.gpkg") %>% 
   st_set_crs(4326)
 grid_sf <- st_make_grid(basins, n=c(10,10), what="polygons") %>%
     st_sf()
@@ -83,10 +82,9 @@ plot(sf::st_geometry(villages), col='white', pch=16, cex=.5, add=TRUE)
 Another query we could look at is which river segments are within a selected grid cell. 
 
 ```{r message=FALSE, warning=FALSE}
-# for CSC notebooks  replace ".." with "/home/rstudio/r-spatial-course"
-rivers <- sf::read_sf("../Data/rivers.gpkg") %>% 
+rivers <- sf::read_sf("../data/rivers.gpkg") %>% 
   sf::st_transform(4326)
-grid_sel <- grid_sf[15,]
+grid_sel <- grid_sf[45,]
 
 river_sel <- sf::st_within(rivers, grid_sel, sparse = FALSE)
 any(river_sel) # are there any rives in this cell?
@@ -147,44 +145,23 @@ villages %>%
 
 1. Write an R script which
 
-* loads villages.gpkg
-* transforms CRS to EPSG:32648
-* selects one (any) village point
-* takes a buffer of 50km
-* counts how many villages fall within the buffer
-* plots the buffer and the villages
+* loads the building dataset
+* transforms CRS to EPSG:3067
+* selects one (any) building
+* takes a buffer of 1 km
+* counts how many buildings fall within the buffer
+* plots the buffer and the buildings
 
 ```{r}
-villages <- sf::read_sf("../Data/villages.gpkg") %>% 
-    st_transform(32648)
-
-buffer <- villages %>% 
-  slice(1000) %>% 
-  st_buffer(50000) %>% 
-  mutate(., 
-         n = sum(st_intersects(., villages, sparse = FALSE)))
-
-ggplot() +
-  geom_sf(data = buffer) + 
-  geom_sf(data = st_intersection(buffer, villages))
 
 ```
 
-2. Do the same as above, but take a random sample of villages.
+2. Do the same as above, but take a random sample of 10 buildings.
 
 * use ggplot and use colour aestethic to visualize the number of villages inside the buffers.
 
 ```{r}
 random_villages <- villages %>%
-  sample_n(100) # take random sample
-
-buffer <- random_villages %>% 
-  st_buffer(50000) %>% 
-  mutate(., 
-         n = rowSums(st_intersects(., villages, sparse = FALSE)))
-
-ggplot() +
-  geom_sf(data = buffer, aes(fill = n)) + 
-  geom_sf(data = st_intersection(buffer, villages), size = 0.05)
+  sample_n(10) # take random sample
 ```
 

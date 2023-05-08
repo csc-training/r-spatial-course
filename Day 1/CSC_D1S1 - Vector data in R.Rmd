@@ -33,10 +33,8 @@ With the packages installed, let's get on our way. We'll first look how the vect
 # load libraries we will be using here
 library(sf)
 
-# in the CSC notebook, the whole filepath needs to be states: we cannot use relative notation?
-# file <- "/home/rstudio/r-spatial-course/Data/LAO_adm1.shp"
-file <- "../Data/LAO_adm1.shp"
-laos <- sf::st_read(file) # yields a data.frame
+file <- "../Data/lao_adm1.shp"
+( laos <- sf::st_read(file) ) # yields a data.frame
 ( laos <- sf::read_sf(file) ) # yields a tibble. This is what I personally prefer
 
 plot(laos)
@@ -47,13 +45,8 @@ We also have an excel sheet with data on Laotian villages which includes coordin
 ```{r}
 library(readxl)
 
-villages <- readxl::read_xlsx("../Data/WPI_Laos_2011_v3.xlsx")
-villages
+villages <- readxl::read_xlsx("../data/WPI_Laos_2011_v3.xlsx")
 villages <- sf::st_as_sf(villages, coords = c("lon", "lat"), crs = 4326)
-
-villages
-
-names(villages)
 
 plot(villages)
 
@@ -64,7 +57,7 @@ With the conversion done, let's save the data in a spatial format so that we don
 need to do the conversion again, but we could just read in the with {sf}.
 
 ```{r}
-sf::st_write(villages, "../Data/villages.gpkg")
+sf::st_write(villages, "../data/villages.gpkg")
 ```
 
 ## Using {dplyr} verbs with {sf}
@@ -73,10 +66,10 @@ sf::st_write(villages, "../Data/villages.gpkg")
 As mentioned earlier, one of the main advantages of 'sf' over the older 'sp' is the ability to use tidyverse verbs on spatial data. Here we use dplyr function *select* to pick only three columns (attributes) from the total of 26. 
 
 ```{r}
+library(dplyr)
+
 ( villages %>% 
     dplyr::select(PovertyRate, LiteracyRate, prov_name) ) 
-
-dplyr::select(villages, PovertyRate, LiteracyRate, prov_name)
 ```
 
 
@@ -115,22 +108,19 @@ We might, however, want to see the summary for each province rather than have th
                      Avg_poverty = mean(PovertyRate),
                      Min_literacy = min(LiteracyRate),
                      Max_literacy = max(LiteracyRate),
-                     Range_literacy = Max_literacy - Min_literacy) %>%  
-    plot() )  
-
-
+                     Range_literacy = Max_literacy - Min_literacy) )  
 ```
 
 
 The tidyverse verbs can take complex functions as input, as long as they return a single value which can be vectorized. For instance, we can run a linear model inside the *mutate* function, and extract fitted values from it.
 ```{r}
 ( villages_modelled <- villages %>%
-    dplyr::mutate(WPI_model = lm(dWPI.bPCA.scaled ~ LiteracyRate + PovertyRate +
+    dplyr::mutate(lit_model = lm(LiteracyRate ~ PovertyRate +
                                    HumanFootprint, villages)$fitted.values) %>%
-    dplyr::select(WPI_model, dWPI.bPCA.scaled) )
+    dplyr::select(lit_model, LiteracyRate) )
 
 plot(villages_modelled)
-cor(villages_modelled$WPI_model, villages_modelled$dWPI.bPCA.scaled)
+cor(villages_modelled$lit_model, villages_modelled$LiteracyRate)
 ```
 
 
@@ -149,41 +139,37 @@ We sometimes may wish to add features to an existing set. For that, we need both
 
 
 ```{r}
-( point <- sf::st_point(c(0,0)) ) # XY point
-( point_xyz <- sf::st_point(c(2,4,1)) ) # XYZ point
-( point_xym <- sf::st_point(c(2,4,1), dim="XYM") ) # XYM point
-( point_xyzm <- sf::st_point(c(2,4,1,2)) )# XYZM point
-( sf::st_zm(point_xyzm) ) # to drop Z and M dimensions if needed
+( point <- st_point(c(0,0)) ) # XY point
+( point_xyz <- st_point(c(2,4,1)) ) # XYZ point
+( point_xym <- st_point(c(2,4,1), dim="XYM") ) # XYM point
+( point_xyzm <- st_point(c(2,4,1,2)) )# XYZM point
+( st_zm(point_xyzm) ) # to drop Z and M dimensions if needed
 ```
 
 ```{r}
 coord_matrix <- rbind(c(1.5,1.5), c(1.5,2.5), c(2.5,2.5), c(2.5,1.5))
-coord_matrix
-( line <- sf::st_linestring(coord_matrix) )
+( line <- st_linestring(coord_matrix) )
 ```
 
 ```{r}
 polygon_border <- rbind(c(0,0), c(0,3), c(3,3), c(3,0), c(0,0))
-polygon_border
-( polygon <- sf::st_polygon(list(polygon_border)) )
-
+( polygon <- st_polygon(list(polygon_border)) )
 
 polygon_hole <- rbind(c(1,1), c(1,2), c(2,2), c(2,1), c(1,1))
-polygon_hole
-( polygon_with_hole <- sf::st_polygon( list(polygon_border, polygon_hole)) )
+( polygon_with_hole <- st_polygon( list(polygon_border, polygon_hole)) )
 ```
 
 
 
 ### MULTIPOINT, MULTILINE, MULTIPOLYGON
 ```{r}
-( multi_point <- sf::st_multipoint(coord_matrix) )
+( multi_point <- st_multipoint(coord_matrix) )
 
 coord_matrix2 <- rbind(c(4,0), c(4,4))
-( multi_line <- sf::st_multilinestring(list(coord_matrix, coord_matrix2)) )
+( multi_line <- st_multilinestring(list(coord_matrix, coord_matrix2)) )
 
 polygon_border2 <- rbind(c(5,5), c(5,3), c(4,4), c(5,5))
-( multi_polygon <- sf::st_multipolygon(list( list(polygon_border, polygon_hole), list(polygon_border2) )) )
+( multi_polygon <- st_multipolygon(list( list(polygon_border, polygon_hole), list(polygon_border2) )) )
 ```
 
 
@@ -191,7 +177,7 @@ polygon_border2 <- rbind(c(5,5), c(5,3), c(4,4), c(5,5))
 
 ### GEOMETRYCOLLECTION
 ```{r}
-( geom_col <- sf::st_geometrycollection(list(multi_point, multi_polygon, multi_line)) )
+( geom_col <- st_geometrycollection(list(multi_point, multi_polygon, multi_line)) )
 ```
 
 
@@ -216,34 +202,31 @@ In order to create an sf object, we need to create a simple feature geometry col
 
 Several 'sfc' objects can be concatenated.
 ```{r}
-point_sfc <- sf::st_sfc(point)
-line_sfc <- sf::st_sfc(line)
-polygon_sfc <- sf::st_sfc(polygon_with_hole)
-col_sfc <- sf::st_sfc(point, line, polygon_with_hole)
+point_sfc <- st_sfc(point)
+line_sfc <- st_sfc(line)
+polygon_sfc <- st_sfc(polygon_with_hole)
+col_sfc <- st_sfc(point, line, polygon_with_hole)
 
 ( geom <- c(point_sfc, line_sfc, polygon_sfc) )
-geom
 ```
 
 
 A simple features object ('sf') is created when attributes are attached to the geometries. Let's add a unique ID to our 3 features and a category attribute:
 ```{r}
 attributes <- data.frame(ID = 1:3, cat = c("tree", "path", "house"))
-attributes
 
-( objects <- sf::st_sf(attributes, geometry = geom) )
+( objects <- st_sf(attributes, geometry = geom) )
 ```
 
 We can add a new feature to the set using *rbind()* or *dplyr::bind_rows()*.
 ```{r}
 
-new_feature <- sf::st_point(c(1,1)) %>% 
-  sf::st_sfc() %>% 
-  sf::st_sf() %>% 
-  dplyr::mutate(ID = 4,
+new_feature <- st_point(c(1,1)) %>% 
+  st_sfc() %>% 
+  st_sf() %>% 
+  mutate(ID = 4,
          cat = "human")
 
-new_feature
 ( objects <- rbind(objects, new_feature) )
 
 plot(objects)
@@ -259,27 +242,24 @@ Write out commands which
 
 1.
 
-* *read* in villages.gpkg
-* *select* some variables
-* *filter* those villages which have a value higher than 50 in one of your selected variables
+* *read* in helsinki_buildings.gpkg from the data folder
+* *select* a variable
+* *filter* a subset of the buildings based on the variable you chose
 
 ```{r}
-read_sf("../Data/villages.gpkg") %>%
-    dplyr::select(vil_id, HumanFootprint, IncomeDependency) %>%
-    dplyr::filter(IncomeDependency > 50)
+
 ```
 
 2.
 
-* *select* HumanFootprint and PovertyRate from villages
-* *mutate* a new variable **HFP** which has value 1 if HumanFootprint is higher than average HumanFootprint, and 0 if below. Hint: you can use **ifelse(condition, true, false)** inside *mutate*
-* *group by* HFP and *summarise* mean HumanFootprint 
+* *read* in helsinki_buildings.gpkg from the data folder
+* *select* I_KERROSALA and D_ASHUOALA (total building sq m2, and sq m2 used for apartment space)
+* *mutate* a new variable **proportion**, which is the proportion of D_ASHUOALA from the total I_KERROSALA.
+* *mutate* a new variable *apartment_building* which has value 1 if **proportion** is higher than 0.5, and 0 if below. Hint: you can use **ifelse(condition, true, false)** inside *mutate*
+* *group by* apartment_building and *summarise* the mean D_ASHUOALAfor the two classes
 
 ```{r}
-villages %>% 
-  mutate(HFP = ifelse( HumanFootprint > mean(HumanFootprint), 1, 0) ) %>% 
-  group_by(HFP) %>% 
-  summarise(mean(HumanFootprint))
+
 ```
 
 3.
@@ -291,18 +271,6 @@ villages %>%
 * Attach the new point to the five villages you filtered earlier.
 
 ```{r}
-five_villages <- select(villages, vil_id) %>% 
-  dplyr::slice(1:5)
-
-five_villages
-
-new_point <- st_point(c(1,1)) %>% 
-  st_sfc() %>% 
-  st_sf() %>% 
-  mutate(vil_id = 1) %>% 
-  st_set_crs( st_crs(five_villages) )
-
-rbind(five_villages, new_point)
 
 ```
 

@@ -24,15 +24,12 @@ library(sf)
 library(dplyr)
 
 set.seed(20210102) # for reproducibility
-# for CSC notebooks  replace ".." with "/home/rstudio/r-spatial-course"
-villages <- sf::read_sf("../Data/villages.gpkg") %>% 
-    sf::st_transform(32648) %>% 
-    dplyr::sample_n(500) %>% 
-  arrange(vil_id)
-villages
 
-# for CSC notebooks  replace ".." with "/home/rstudio/r-spatial-course"
-admin <- sf::read_sf("../Data/LAO_adm1.shp") %>% 
+villages <- sf::read_sf("../data/villages.gpkg") %>% 
+    sf::st_transform(32648) %>% 
+    dplyr::sample_n(500)
+
+admin <- sf::read_sf("../data/LAO_adm1.shp") %>% 
   sf::st_transform(32648)
 
 vil_voronoi <- villages %>% 
@@ -41,36 +38,33 @@ vil_voronoi <- villages %>%
       sf::st_cast() %>% 
       sf::st_sf() %>% 
       sf::st_join(villages) %>% 
-      sf::st_intersection(st_union(admin)) %>% 
-  arrange(vil_id)
+      sf::st_intersection(st_union(admin))
 
 
 # create 'listw' (weight list) object from point distance matrix  
 dmat <- 1/sf::st_distance(villages) %>% 
   unclass() 
 diag(dmat) <- 0 # set matrix diagonal as 0
-dmat <- dmat^2
 dmat_listw <- spdep::mat2listw(dmat, style = "W")
 
 vil_data <- villages %>% sf::st_set_geometry(NULL)
-vil_data
 ```
 
 
 ```{r}
-sar <- spatialreg::lagsarlm(wWPI.bPCA.scaled ~ PovertyRate + LiteracyRate + HumanFootprint, 
+sar <- spatialreg::lagsarlm(PovertyRate ~  LiteracyRate + HumanFootprint, 
          data=vil_data, 
          dmat_listw)
 summary(sar)
 
-cor(villages$wWPI.bPCA.scaled, sar$fitted.values)^2
+cor(villages$PovertyRate, sar$fitted.values)^2
 
 # compare to OLS
-linmod <- lm(wWPI.bPCA.scaled ~ PovertyRate + LiteracyRate + HumanFootprint, 
+linmod <- lm(PovertyRate ~  LiteracyRate + HumanFootprint, 
          data=vil_data)
 summary(linmod)
 
-cor(villages$wWPI.bPCA.scaled, linmod$fitted.values)^2
+cor(villages$PovertyRate, linmod$fitted.values)^2
 ```
 
 
@@ -79,7 +73,7 @@ cor(villages$wWPI.bPCA.scaled, linmod$fitted.values)^2
 
 ## Geographically weighted regression
 
-Geographically weighted regression (GWR) is a method which allows accounting for spatial non-heterogeneity in regression analysis. In practise, it performs a regular regression on a weighted sample of observations. It is closely related to locally weighted regression (LWR) with a difference that LWR weights observations in attribute space (which can include spatial information), while GWR weights observations in geographical space. 
+Geographically weighted regression (GWR) is a method which allows accounting for spatial non-heterogeneity in regression analysis. In practise, it performs a regular regression on a weighted sample of observations. It is closely related to locally weighted regression (LWR) with a difference that LWR weights observations in attribute space (which can include spatial information), while GWR weights observations in geographical space, and attribute information does not play a role in the weights calculation. 
 
 Weighting of observations in GWR is based on some kernel method, based on bandwidth (the extent of the spatial phenomenon). The bandwidth can be computationally optimised, or be based on expert knowledge.
 
@@ -92,17 +86,19 @@ villages_sp <- as(villages, "Spatial")
 
 # calculate distance matrix and compute optimal bandwidth for GWR
 dmat <- gw.dist(dp.locat=coordinates(villages_sp))
-bw <- bw.gwr(wWPI.bPCA.scaled ~ PovertyRate + LiteracyRate + HumanFootprint, villages_sp, kernel = "gaussian")
+bw <- bw.gwr(PovertyRate ~  LiteracyRate + HumanFootprint,  
+             villages_sp, kernel = "gaussian")
 ```
 
-The optimal cross-validated bandwidth for this model seems to be approximately 63 km. We can then perform GWR using this bandwidth:
+The optimal cross-validated bandwidth for this model seems to be approximately 36.5 km. We can then perform GWR using this bandwidth:
 
 ```{r message=FALSE, warning=FALSE}
-vil_gwr <- gwr.basic(wWPI.bPCA.scaled ~ PovertyRate + LiteracyRate + HumanFootprint, villages_sp, kernel = "gaussian", bw = bw, dMat = dmat)
+vil_gwr <- gwr.basic(PovertyRate ~  LiteracyRate + HumanFootprint, 
+                     villages_sp, kernel = "gaussian", bw = bw, dMat = dmat)
 
-vil_voronoi$WPI_GWR <- vil_gwr$SDF$y
-plot(vil_voronoi[,"WPI_GWR"])
-plot(vil_voronoi[,"wWPI.bPCA.scaled"])
+vil_voronoi$pov_GWR <- vil_gwr$SDF$y
+plot(vil_voronoi[,"pov_GWR"])
+plot(vil_voronoi[,"PovertyRate"])
 
 
 ```
@@ -111,12 +107,6 @@ The spatial patterns seems to be off somewhat.
 
 ```{r message=FALSE, warning=FALSE}
 vil_gwr
-
-vil_gwr$SDF$PovertyRate
-
-
-vil_voronoi$coef <- vil_gwr$SDF$PovertyRate
-plot(vil_voronoi[,"coef"])
 
 ```
 
@@ -148,24 +138,6 @@ Resulting object from GWR contains a lot of useful information:
 
 ```{r}
 
-villages_sp <- sf::read_sf("../Data/villages.gpkg") %>% 
-    sf::st_transform(32648) %>% 
-    dplyr::sample_n(500) %>% 
-  as("Spatial")
-
-dmat <- gw.dist(dp.locat=coordinates(villages_sp))
-bw <- bw.gwr(PovertyRate ~ wACC + wCAP + wENV + wUSE, villages_sp, kernel = "gaussian")
-
-vil_gwr <- gwr.basic(PovertyRate ~  wACC + wCAP + wENV + wUSE, villages_sp, kernel = "gaussian", bw = bw, dMat = dmat)
-
-villages_sf <- st_as_sf(villages_sp)
-
-villages_sf$residuals <- vil_gwr$SDF$residual
-
-plot(villages_sf[,"residuals"])
-
-vil_gwr
-
 ```
 
 
@@ -175,21 +147,5 @@ vil_gwr
 
 ```{r}
 
-# create 'listw' (weight list) object from point distance matrix  
-dmat <- 1/sf::st_distance(villages_sf) %>% 
-  unclass() 
-diag(dmat) <- 0 # set matrix diagonal as 0
-dmat <- dmat^2
-dmat_listw <- spdep::mat2listw(dmat, style = "W")
-
-vil_data <- villages_sf %>% sf::st_set_geometry(NULL)
-
-
-sar <- spatialreg::lagsarlm(PovertyRate ~ wACC + wCAP + wENV + wUSE, 
-         data=vil_data, 
-         dmat_listw)
-summary(sar)
-
-cor(villages$PovertyRate, sar$fitted.values)^2
 ```
 

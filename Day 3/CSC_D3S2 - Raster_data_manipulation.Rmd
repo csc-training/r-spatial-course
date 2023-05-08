@@ -17,14 +17,9 @@ library(dplyr)
 library(tidyr)
 library(tmap)
 
-# for CSC notebooks  replace ".." with "/home/rstudio/r-spatial-course"
-admin <- sf::read_sf("../Data/raster/SuomenKuntajako_2021_100k.shp")
-plot(admin)
-
+admin <- sf::read_sf("../data/raster/SuomenKuntajako_2021_100k.shp")
 helsinki <- dplyr::filter(admin, NAMEFIN == "Helsinki")
 plot(admin)
-
-plot(helsinki)
 
 ```
 
@@ -32,61 +27,26 @@ plot(helsinki)
 Read in a list of files.
 
 ```{r}
-# for CSC notebooks  replace ".." with "/home/rstudio/r-spatial-course"
-files <- list.files("../Data/raster/Tmean_Monthly_2005-2014/", 
+files <- list.files("../data/raster/Tmean_Monthly_2005-2014/", 
                     full.names = TRUE)
-files
 
 temperature <- lapply(files, terra::rast) #read in all files, output is a list
-
-length(temperature)
-temperature[[1]]
-temperature[1:5]
-
-
 temperature <- do.call("c", temperature) # stack all rasters together
-temperature
 
 plot(temperature)
-
-
-temperature <- terra::rast(files)
-plot(temperature)
-
 ```
 
 
 Before we do anything, let's make sure both datasets are in the same coordinate reference system. We'll use the CRS of temperature raster stack, because tranforming a raster changes its values.
 
 ```{r}
-( sfcrs <- sf::st_crs(helsinki) )
+sf::st_crs(helsinki)
 terra::crs(temperature)
-class(sfcrs)
-str(sfcrs)
-sfcrs$wkt
 
 helsinki <- sf::st_transform(helsinki, terra::crs(temperature))
 
-st_crs(helsinki)
-
-
 # we could project the raster with:
-temperature <- terra::project(temperature, sf::st_crs(helsinki)$wkt)
-
-temp <- temperature[[1]]
-temp
-plot(temp)
-
-temp_projected <- project(temp, "epsg:4326" )
-temp_reprojected <- project(temp_projected, temp )
-
-plot( c(temp, temp_reprojected) )
-c(temp, temp_reprojected)
-
-all.equal(temp, temp_reprojected)
-
-plot(temp_projected)
-plot(temp_reprojected)
+# temperature <- terra::project(temperature, sf::st_crs(helsinki))
 ```
 
 
@@ -97,8 +57,6 @@ Now we can find out all the values in the raster stack for Helsinki! to do this 
 ```{r}
 helsinki_terra <- terra::vect(helsinki)
 helsinki_temps <- terra::extract(temperature, helsinki_terra)
-helsinki_temps
-
 
 helsinki_temps <- dplyr::summarise_all(helsinki_temps, mean, na.rm=TRUE) %>% 
     tidyr::gather(date, temperature, -ID) %>% 
@@ -107,7 +65,6 @@ helsinki_temps <- dplyr::summarise_all(helsinki_temps, mean, na.rm=TRUE) %>%
 helsinki_temps
 plot(helsinki_temps[,3])
 lines(helsinki_temps[,3])
-
 ```
 
 
@@ -116,17 +73,14 @@ lines(helsinki_temps[,3])
 Aggregation is done by providing the function a factor - how many cells in each direction are used to aggregate. The temperature has a resolution of 10km. Aggregating by factor 4 yields a raster with resolution of 40km (by 40km).
 
 ```{r}
-temp_40km <- terra::aggregate(temperature, fact = 4, fun = mean, na.rm=TRUE)
+temp_40km <- terra::aggregate(temperature, fact = 4, fun = mean)
 plot(temp_40km)
-temp_40km
-
 ```
 
 We can also disaggregate - but the original values cannot be returned!
 
 ```{r}
-# temp_10km <- terra::disagg(temp_40km, fact = 4, method = "bilinear")
-temp_10km <- disaggregate(temp_40km, fact = 4, method = "bilinear")
+temp_10km <- terra::disagg(temp_40km, fact = 4, method = "bilinear")
 temp_10km
 
 temp_difference <- temp_10km - temperature
@@ -140,8 +94,6 @@ Resampling can achieve both. But are they the same - no!
 
 temp_40km_resampled <- terra::resample(temperature, temp_40km, method = "bilinear")
 plot(temp_40km_resampled)
-temp_40km_resampled
-temp_40km
 plot(temp_40km - temp_40km_resampled)
 
 ```
@@ -174,8 +126,9 @@ However, it only runs for a single layer
 
 # ntice the message saying it only used the first layer
 temperature_smoothed <- terra::focal(temperature,
-                                     w = 21,
-                                     fun = max)
+                                     w = 3,
+                                     fun = mean,
+                                     na.rm=TRUE)
 
 plot(temperature_smoothed)
 plot(temperature[[1]])
@@ -185,8 +138,9 @@ plot(temperature[[1]])
 We can also define the neighbourhood in other ways:
 ```{r}
 temperature_smoothed <- terra::focal(temperature[[1]],
-                                     w = c(nrow(temperature)-1, 3),
-                                     fun = mean)
+                                     w = c(3,ncol(temperature)-1),
+                                     fun = mean,
+                                     na.rm=TRUE)
 plot(temperature_smoothed)
 
 # remove values from the sea
@@ -201,7 +155,6 @@ or with matrices:
 ```{r}
 
 weight_matrix <- matrix(1, nrow = nrow(temperature)-1, ncol = 1)
-weight_matrix
 
 temperature_smoothed <- terra::focal(temperature[[1]],
                                      w = weight_matrix,
@@ -224,24 +177,15 @@ The final part of this lesson shows reclassification. Here we divide Finland int
 But before that, lets compute the mean temeprature at each cell over the 10-year period 2005-2014, and find "optimal" class intervals.
 
 ```{r}
-plot(temperature)
 
 temperature_mean <- mean(temperature)
-temperature_mean
-plot(temperature_mean)
-
-
 
 library(classInt)
 
-intervals <- classInt::classIntervals(terra::values(temperature_mean),
+intervals <- classIntervals(terra::values(temperature_mean),
                             n = 4,
                             style = "quantile")
 
-# quantile(values(temperature_mean), probs = c(0.2, 0.4, 0.6, 0.8), na.rm=TRUE)
-
-intervals  
-         
 reclass_matrix <- matrix(c(-Inf, intervals$brks[1], 1,
                            intervals$brks[1], intervals$brks[2], 2,
                            intervals$brks[2], intervals$brks[3], 3,
@@ -249,7 +193,6 @@ reclass_matrix <- matrix(c(-Inf, intervals$brks[1], 1,
                            intervals$brks[4], Inf, 5),
                          ncol = 3,
                          byrow = TRUE)
-reclass_matrix
 
 temperature_classified <- terra::classify(temperature_mean,
                                           reclass_matrix)
@@ -261,10 +204,9 @@ plot(temperature_classified)
 
 And finally, let's save that raster for later use.
 ```{r}
-# for CSC notebooks  replace ".." with "/home/rstudio/r-spatial-course"
+
 terra::writeRaster(temperature_classified, 
-                   filename = "../Data/raster/temperature_classified.tif",
-                   overwrite = TRUE)
+                   filename = "../data/raster/temperature_classified.tif")
 
 
 ```
@@ -279,22 +221,6 @@ terra::writeRaster(temperature_classified,
 * Choose a municipality from the municipality dataset (larger municipalities are better). Crop the temperature raster stack to that municipality.
 * find the mean, min, and max temperatures for that municipality over the period 2005-2014 (the full raster stack)
 
-```{r}
-kolari <- admin %>% 
-    filter(NAMEFIN == "Kolari")
-
-temp_kolari <- crop(temperature, kolari)
-
-values <- global(temp_kolari, mean) 
-mean_temp <- mean(values$mean)
-
-
-values <- terra::extract(temp_kolari, vect(kolari))
-mean(as.matrix(values[,-1]),na.rm=TRUE)
-
-
-```
-
 
 2. 
 
@@ -303,39 +229,10 @@ mean(as.matrix(values[,-1]),na.rm=TRUE)
 * Plot the rasters - do you see large differences? Compute the difference between the rasters, and plot that too.
 
 
-```{r}
-focal_mean <- focal(temperature_mean, 
-                    w = matrix(c(0,1,0,1,-4,1,0,1,0), nrow=3))
-
-plot(focal_mean)
-
-focal_mean <- crop(focal_mean, kolari)
-plot(c(focal_mean, mean(temp_kolari)))
-
-plot(focal_mean - mean(temp_kolari))
-
-```
-
-
 3. 
 
 * Reclassify both rasters using just two classes: *hot* and *cold*. Where are the hot and cold parts of the municipality?
 
 
-```{r}
-
-reclass_matrix <- matrix( c(-Inf, mean(values(temp_kolari), na.rm=TRUE), factor("cold", levels = c("hot", "cold")),
-                            mean(values(temp_kolari), na.rm=TRUE), Inf, factor("hot", levels = c("hot", "cold"))),
-                          ncol = 3,
-                          byrow = TRUE)
-
-reclass_matrix
-
-temp_kolari_classified <- classify(mean(temp_kolari),
-                        reclass_matrix)
-
-plot(mean(temp_kolari))
-plot(temp_kolari_classified)
-```
 
 

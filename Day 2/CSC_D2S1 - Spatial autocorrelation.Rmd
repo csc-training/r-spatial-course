@@ -37,37 +37,26 @@ The most common metric to measure spatial autocorrelation is Moran's I. In R, we
 ```{r message=FALSE, warning=FALSE}
 library(sf, quietly=TRUE)
 library(dplyr, quietly=TRUE)
-# for CSC notebooks  replace ".." with "/home/rstudio/r-spatial-course"
-
-set.seed(20211102)
-villages <- read_sf("../Data/villages.gpkg") %>% 
+villages <- read_sf("../data/villages.gpkg") %>% 
     st_transform(32648) %>% 
     sample_n(250)
 
-head(villages)
 
 library(spdep)
 
 # first create 'listw' (weight list) object from point distance matrix  
 dmat <- 1/sf::st_distance(villages) %>% 
-  units::drop_units()#unclassing because st_distance returns a 'unit' class object. Operations with 'unit' class require both operands to be of class 'unit'.
+  unclass() #unclassing because st_distance returns a 'unit' class object. Operations with 'unit' class require both operands to be of class 'unit'.
 diag(dmat) <- 0 # set matrix diagonal as 0
-dmat <- dmat^2
 dmat_listw <- spdep::mat2listw(dmat, style = "W")
 
 ( moran <- spdep::moran.test(villages$PovertyRate, dmat_listw) )
-
-library(ggplot2)
-ggplot(villages) +
-  geom_sf(aes(size = PovertyRate)) +
-  scale_size_continuous(range = c(0, 5))
-
 ```
 
 ```{r}
 # weights based on k nearest neighbours
 knn_listw <- sf::st_coordinates(villages) %>% 
-    spdep::knearneigh(k=floor(250/3)) %>% 
+    spdep::knearneigh(k=40) %>% 
     spdep::knn2nb() %>% # create neighbour list
     spdep::nb2listw(style = "W") # create weights list from neighbour object
 spdep::moran.test(villages$PovertyRate, knn_listw)
@@ -76,20 +65,16 @@ spdep::moran.test(villages$PovertyRate, knn_listw)
 
 ```{r}
 # weights based on neighborhoods
-# for CSC notebooks  replace ".." with "/home/rstudio/r-spatial-course"
-admin <- sf::read_sf("../Data/LAO_adm1.shp") %>%
+admin <- sf::read_sf("../data/LAO_adm1.shp") %>%
     sf::st_transform(32648)
 
-# vil_voronoi <- read_sf("../Data/village_voronoi.gpkg")
-vil_voronoi <- villages %>%
-      sf::st_union() %>%
-      sf::st_voronoi() %>%
-      sf::st_cast() %>%
-      sf::st_sf() %>%
-      sf::st_join(villages) %>%
+vil_voronoi <- villages %>% 
+      sf::st_union() %>% 
+      sf::st_voronoi() %>% 
+      sf::st_cast() %>% 
+      sf::st_sf() %>% 
+      sf::st_join(villages) %>% 
       sf::st_intersection(st_union(admin))
-plot(vil_voronoi[,"dRES"])
-
 
 nb <- spdep::poly2nb(vil_voronoi)
 summary(nb)
@@ -111,7 +96,7 @@ Local Moran's I is also simple to compute using the 'spdep' package. It is impor
 
 ```{r message=FALSE, warning=FALSE}
 local_moran <- spdep::localmoran(villages$PovertyRate, 
-                                 knn_listw, 
+                                 dmat_listw, 
                                  alternative = "two.sided") %>% 
     dplyr::as_tibble()
 
@@ -120,8 +105,8 @@ local_moran
 
 # plot
 vil_voronoi <- vil_voronoi %>% 
-  dplyr::mutate(Morans_I = local_moran$Ii, 
-                Morans_p = dplyr::pull(local_moran,5)) # # p-value of local moran statistic. Notice that the column name has spaces, which means we need to refer to it with backticks. In finnish language keyboard, press shift + the button to the left of backspace.
+  dplyr::mutate(Morans_I = as.vector(local_moran$Ii), 
+                Morans_p = as.vector(local_moran$`Pr(z != E(Ii))`)) # # p-value of local moran statistic. Notice that the column name has spaces, which means we need to refer to it with backticks. In finnish language keyboard, press shift + the button to the left of backspace.
 plot(vil_voronoi[,"Morans_I"])
 plot(vil_voronoi[,"Morans_p"])
 
@@ -157,7 +142,7 @@ coordinates <- sf::st_coordinates(villages)
 
 corgram <- ncf::correlog(coordinates[,1], coordinates[,2], # point coordinates
                          villages$PovertyRate, # value for estimation
-                    increment=30000, # distance lags, here 100 km
+                    increment=100000, # distance lags, here 100 km
                     resamp=50, # permutations for significance testing
                     na.rm=TRUE)
 plot(corgram) # closed dots have p < 0.05
@@ -176,25 +161,12 @@ plot(corgram) # closed dots have p < 0.05
 1. 
 
 * read villages.gpkg and transform it into *EPSG:32648*
-* *filter* prov_name Savannakhet in villages dataset. 
+* *filter* province Savannakhet in villages dataset. 
 * compute a *1/st_distance* matrix for the subset of villages, and create a *listw* object from it
 * compute Moran's I for an attribute of your own choice
 * draw a ggplot
 
 ```{r}
-vil <- read_sf("../Data/villages.gpkg") %>% 
-  st_transform(32648) %>% 
-  filter(prov_name == "Savannakhet")
-
-dmat_listw <- 1/st_distance(vil) %>%
-  units::drop_units() 
-diag(dmat_listw) <- 0
-dmat_listw <- mat2listw(dmat_listw)
-
-moran.test(vil$LiteracyRate, dmat_listw)
-
-ggplot(vil) + 
-  geom_sf(aes(color = LiteracyRate))
 
 ```
 
@@ -206,18 +178,7 @@ ggplot(vil) +
 * compute local moran using the subset and knn-listw for Savannakhet.
 
 ```{r}
-knn_listw <- sf::st_coordinates(vil) %>% 
-    spdep::knearneigh(k=15) %>% 
-    spdep::knn2nb() %>% # create neighbour list
-    spdep::nb2listw(style = "W") # create weights list from neighbour object
-local_moran <- spdep::localmoran(vil$LiteracyRate, knn_listw) %>% as_tibble()
 
-
-vil<- vil %>% 
-  dplyr::mutate(Morans_I = local_moran$Ii, 
-                Morans_p = pull(local_moran,5)) # # p-value of local moran statistic. Notice that the column name has spaces, which means we need to refer to it with backticks. In finnish language keyboard, press shift + the button to the left of backspace.
-plot(vil[,"Morans_I"])
-plot(vil[,"Morans_p"])
 ```
 
 
@@ -226,14 +187,7 @@ plot(vil[,"Morans_p"])
 * compute a correlogram for Savannakhet for a variable of your choice.
 
 ```{r}
-coordinates <- sf::st_coordinates(vil)
 
-corgram <- ncf::correlog(coordinates[,1], coordinates[,2], # point coordinates
-                         vil$LiteracyRate, # value for estimation
-                    increment=20000, # distance lags, here 100 km
-                    resamp=50, # permutations for significance testing
-                    na.rm=TRUE)
-plot(corgram) # closed dots have p < 0.05
 ```
 
 
@@ -307,7 +261,7 @@ mean(nn)
 # K-, L-, F-, or G-functions
 vil_G <- Gest(vil_ppp)
 vil_L <- Lest(vil_ppp)
-vil_L <- Gest(vil_ppp)
-vil_L <- Fest(vil_ppp)
+vil_K <- Kest(vil_ppp)
+vil_F <- Fest(vil_ppp)
 plot(vil_G)
 ```
