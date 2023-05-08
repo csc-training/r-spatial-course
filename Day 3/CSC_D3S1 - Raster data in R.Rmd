@@ -96,7 +96,7 @@ Let's read in the elevation model of Finland included in the data and inspect it
 
 ```{r}
 
-elevation <- terra::rast("/home/rstudio/r-spatial-course/data/raster/Elevation_10km.tif")
+elevation <- terra::rast("/home/rstudio/r-spatial-course/Data/raster/Elevation_10km.tif")
 
 summary(elevation)
 ext(elevation) # this is the boundinx box of the raster
@@ -124,7 +124,7 @@ global(stack, mean)
 
 1.
 
-* Read in a temperature layer from "/home/rstudio/r-spatial-course/data/raster/Tmean_Monthly_2005-2014/Tmon_20050101.tif"
+* Read in a temperature layer from "/home/rstudio/r-spatial-course/Data/raster/Tmean_Monthly_2005-2014/Tmon_20050101.tif"
 * Read in two other layers from the same folder, but from a different month. The number in the file refers to YYYYMMDD.
 * Stack the three layers in one
 * compute mean temperature
