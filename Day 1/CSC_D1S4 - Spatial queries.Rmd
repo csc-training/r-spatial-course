@@ -1,7 +1,7 @@
 ---
 title: "CSC Spatial Analysis with R: Day 1 Session 4 - Vector data manipulation"
 author: "Marko Kallio"
-date: "1 Nov 2021"
+date: "10 May 2023"
 output:
   html_document:
     df_print: paged

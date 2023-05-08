@@ -1,7 +1,7 @@
 ---
 title: "CSC_D3S1 - Raster data in R"
 author: "Marko Kallio"
-date: "3 Nov 2021"
+date: "12 May 2023"
 output: html_document
 ---
 
