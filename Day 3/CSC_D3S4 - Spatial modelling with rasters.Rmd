@@ -9,6 +9,247 @@ output: html_document
 
 In the last session of the course, we'll do a some simple modelling with rasters.
 
+
+Load temperature and rainfall stacks, elevation, and lake surfaces.
+
+```{r}
+
+library(terra)
+library(dplyr)
+library(sf)
+
+files <- list.files("/home/rstudio/r-spatial-course/Data/raster/RRmon_Monthly_2005-2014/", 
+                    full.names = TRUE)
+rainfall <- lapply(files, terra::rast) #read in all files, output is a list
+rainfall <- do.call("c", rainfall) # stack all rasters together
+
+files <- list.files("/home/rstudio/r-spatial-course/Data/raster/Tmean_Monthly_2005-2014/", 
+                    full.names = TRUE)
+
+temperature <- lapply(files, terra::rast) #read in all files, output is a list
+temperature <- do.call("c", temperature) # stack all rasters together
+
+elevation <- terra::rast("/home/rstudio/r-spatial-course/Data/raster/Elevation_10km.tif") # Digital elevation model
+lakes <- terra::rast("/home/rstudio/r-spatial-course/Data/raster/Lake_10km.tif") # Lake cover
+
+
+```
+
+
+
+Let's run a linear model looking at the changes in temperature and rainfall in 2005-2014. We'll define a function extracting the model coefficients.
+
+
+```{r}
+
+
+### Define functions to fit a model and extract relevant information ###
+# For obtaining estimated model coefficients
+fun_model <- function(x) { 
+    
+    if(all(is.na(x))) return(c(NA,NA,NA,NA))
+    
+    n <- 1:length(x)
+    linmod <- lm(x ~ n)
+    coefs <- linmod$coefficients
+    pvals <- summary(linmod)$coefficients[,4]
+    out <- c(coefs, pvals)
+    
+    return(out)
+}
+
+rainfall_coef <- terra::app(rainfall, fun = fun_model)
+rainfall_coef
+names(rainfall_coef) <- c("Intercept", "Slope", "p_int", "p_slope")
+plot(rainfall_coef)
+
+temperature_coef <- terra::app(temperature, fun = fun_model)
+names(temperature_coef) <- c("Intercept", "Slope", "p_int", "p_slope")
+plot(temperature_coef)
+
+
+```
+
+
+Let's look at the trend in a single month, February. 
+
+
+```{r}
+subset_vect <- seq(2, by = 12, length.out = 10)
+subset_vect
+
+feb_temp <- terra::subset(temperature, subset = subset_vect)
+feb_rain <- terra::subset(rainfall, subset = subset_vect)
+
+
+rainfall_coef <- terra::app(feb_rain, fun = fun_model)
+names(rainfall_coef) <- c("Intercept", "Slope", "p_int", "p_slope")
+plot(rainfall_coef)
+
+temperature_coef <- terra::app(feb_temp, fun = fun_model)
+names(temperature_coef) <- c("Intercept", "Slope", "p_int", "p_slope")
+plot(temperature_coef)
+
+
+```
+
+
+There seems to be significant warming in most of Finland over the period 2005-2014. We could also extract the values as a data.frame.
+
+
+```{r}
+
+model_data <- as.data.frame(temperature_coef, 
+                            xy = TRUE,
+                            cells = TRUE) %>% 
+    dplyr::as_tibble()
+
+summary(model_data)
+model_data
+```
+
+
+
+
+## Applying a pre-specified model to a raster stack
+
+
+Let's fit a linear model predicting a average temperature in July 2011 based on location (X, Y), and elevation. We train it with some random selection of training data and assess against the remaining testing data.
+
+```{r}
+july2011 <- temperature[["Tmon_20110701"]]
+july2011 <- terra::project(july2011, elevation, method = "near")
+
+stack <- c(july2011, elevation)
+plot(stack)
+
+data <- terra::as.data.frame(stack, xy = TRUE)
+data
+trainset <- sample(1:nrow(data), floor(nrow(data)*0.50)) %>% 
+    sort()
+trainset
+
+model_fit <- lm(Tmon_20110701 ~ x + y + Elevation_10km, data = data[trainset, ])
+
+summary(model_fit) # very good!
+
+
+# Evaluate with the trainig data
+prediction <- predict(model_fit, newdata = data[-trainset, ])
+
+cor(prediction, data$Tmon_20110701[-trainset])^2
+
+```
+
+With a model fitted, we can apply this to a raster stack. But before that, we need to get x and y coordinate rasters in the stack. We can *rasterize* a point data set for that.
+
+```{r}
+
+# xy_raster <- data %>% 
+#     dplyr::mutate(x_coord = x,
+#            y_coord = y) %>% 
+#     terra::vect(geom = c("x_coord", "y_coord")) %>%
+#     terra::rasterize(july2011, field = c("x", "y"))
+
+temp <- stack
+values(temp) <- 1
+coords <- terra::crds(temp)
+head(coords)
+
+x_raster <- matrix(coords[,1], ncol = ncol(temp), byrow=TRUE) %>% 
+    terra::rast() 
+plot(x_raster)
+
+y_raster <- matrix(coords[,2], ncol = ncol(temp), byrow=TRUE) %>% 
+    terra::rast()
+plot(y_raster)
+x_raster
+
+crs(x_raster) <- crs(stack)
+crs(y_raster) <- crs(stack)
+
+ext(x_raster) <- ext(stack)
+ext(y_raster) <- ext(stack)
+x_raster
+
+xy_raster <- c(x_raster, y_raster)
+names(xy_raster) <- c("x", "y")
+
+
+
+prediction_stack <- c(xy_raster, stack)
+prediction_stack
+prediction_raster <- terra::predict(prediction_stack, model_fit)
+
+
+plot(c(prediction_raster, july2011))
+
+```
+
+
+
+
+### Interpolating model to a raster
+
+
+In the above examples we used data directly from rasters to fit a model and run it. We might not always have that luxury. Instead, we might have observations from certain locations, and need to fit our model using those points.
+
+To pretend this kind of situation, we first randomise some points around Finland, and interpolate the model outputs using those points.
+
+```{r}
+
+# create random points
+random_points <- terra::spatSample(july2011, 
+                                   100, 
+                                   method = "random", 
+                                   as.points = TRUE)
+
+plot(elevation)
+points(random_points)
+
+# extract data and fit a model
+fitting_data <- terra::extract(stack, random_points, xy = TRUE) %>% 
+    dplyr::filter(!is.nan(Tmon_20110701))
+fitting_data
+
+model_fit_points <- lm(Tmon_20110701 ~ x + y + Elevation_10km, 
+                       data = fitting_data)
+summary(model_fit_points)
+stack
+
+prediction_interpolated <- terra::interpolate(stack, model_fit_points)
+
+plot(prediction_interpolated)
+points(random_points)
+
+
+plot(c(prediction_interpolated, july2011))
+```
+
+
+
+## Exercises
+
+
+1.
+
+* add a new raster layer *lakes* to prediction stack
+* train a linear regression model with the extra explanatory variable
+* **predict**
+* plot
+
+```{r}
+
+
+```
+
+
+2. 
+
+* Extract values from prediction raster, and july2011
+* compute correlation and mean error (*pred - obs*)
+* plot a scatterplot with july2011 values on x-axis, and error on y-axis.
+
 ```{r}
 
 ```

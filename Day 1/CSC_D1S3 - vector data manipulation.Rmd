@@ -28,7 +28,7 @@ library(mapview)
 ```
 
 ```{r message=FALSE, warning=FALSE}
-basins <- sf::read_sf("../data/basins.gpkg") %>%
+basins <- sf::read_sf("/home/rstudio/r-spatial-course/data/basins.gpkg") %>%
     sf::st_set_crs(4326)
 
 plot(basins, max.plot=3)
@@ -87,8 +87,8 @@ basins_sf <- sf::st_as_sf(basins_sp)
 Unlike many graphical GIS programs (e.g. ArcGIS, QGIS), R cannot transform objects on the fly. Therefore, having all data in the same CRS is important. Luckily, functions in {sf} package will give an error if the CRS of input objects is not identical. Inspecting the CRS of an object can be done with *st_crs()* function. Here we load "rivers.gpkg", which is a subset of HydroSheds river network, derived from 15 arc second DEM.
 
 ```{r}
-basins <- sf::read_sf("../data/basins.gpkg", quiet = TRUE)
-rivers <- sf::read_sf("../data/rivers.gpkg", quiet = TRUE)
+basins <- sf::read_sf("/home/rstudio/r-spatial-course/data/basins.gpkg", quiet = TRUE)
+rivers <- sf::read_sf("/home/rstudio/r-spatial-course/data/rivers.gpkg", quiet = TRUE)
 sf::st_crs(basins)
 sf::st_crs(rivers)
 
@@ -244,7 +244,7 @@ plot(grid_sf)
 Say we were interested in villages in a specific river basin. We can take an intersection of villages within that basin. First, let's load the villages from the file, and then inspect it together with the basins.
 
 ```{r message=FALSE, warning=FALSE}
-villages <- sf::read_sf("../data/villages.gpkg") %>%
+villages <- sf::read_sf("/home/rstudio/r-spatial-course/data/villages.gpkg") %>%
     sf::st_transform(32648)
 
 map <- mapview::mapview(villages) + basins

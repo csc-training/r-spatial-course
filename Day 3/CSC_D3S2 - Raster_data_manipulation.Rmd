@@ -17,7 +17,7 @@ library(dplyr)
 library(tidyr)
 library(tmap)
 
-admin <- sf::read_sf("../data/raster/SuomenKuntajako_2021_100k.shp")
+admin <- sf::read_sf("/home/rstudio/r-spatial-course/data/raster/SuomenKuntajako_2021_100k.shp")
 helsinki <- dplyr::filter(admin, NAMEFIN == "Helsinki")
 plot(admin)
 
@@ -27,7 +27,7 @@ plot(admin)
 Read in a list of files.
 
 ```{r}
-files <- list.files("../data/raster/Tmean_Monthly_2005-2014/", 
+files <- list.files("/home/rstudio/r-spatial-course/data/raster/Tmean_Monthly_2005-2014/", 
                     full.names = TRUE)
 
 temperature <- lapply(files, terra::rast) #read in all files, output is a list
@@ -206,7 +206,7 @@ And finally, let's save that raster for later use.
 ```{r}
 
 terra::writeRaster(temperature_classified, 
-                   filename = "../data/raster/temperature_classified.tif")
+                   filename = "/home/rstudio/r-spatial-course/data/raster/temperature_classified.tif")
 
 
 ```

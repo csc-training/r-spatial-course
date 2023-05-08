@@ -12,7 +12,7 @@ We have already looked at most of Map algebra already - local, focal and global 
 library(terra)
 library(dplyr)
 
-files <- list.files("../data/raster/RRmon_Monthly_2005-2014/", 
+files <- list.files("/home/rstudio/r-spatial-course/data/raster/RRmon_Monthly_2005-2014/", 
                     full.names = TRUE)
 
 rainfall <- lapply(files, terra::rast) #read in all files, output is a list
@@ -22,7 +22,7 @@ Oops! There are some non-raster files in the file list with the extension ".tif.
 
 
 ```{r}
-files <- list.files("../data/raster/RRmon_Monthly_2005-2014/", 
+files <- list.files("/home/rstudio/r-spatial-course/data/raster/RRmon_Monthly_2005-2014/", 
                     full.names = TRUE)
 files <- files[!grepl(".xml", files)] # deselect all files which contain string ".xml"
 
@@ -111,7 +111,7 @@ Zonal functions have not been addressed yet. In zonal operations, some function 
 
 ```{r}
 
-temperature_zones <- rast("../data/raster/temperature_classified.tif")
+temperature_zones <- rast("/home/rstudio/r-spatial-course/data/raster/temperature_classified.tif")
 
 
 ( zonal_rainfall <- terra::subset(rainfall, 1:60) %>% 
@@ -136,7 +136,7 @@ What if we'd like to know the mean rainfall in each of Finland's municipalities?
 
 ```{r}
 
-admin <- terra::vect("../data/raster/SuomenKuntajako_2021_100k.shp")
+admin <- terra::vect("/home/rstudio/r-spatial-course/data/raster/SuomenKuntajako_2021_100k.shp")
 admin$NATCODE <- as.numeric(admin$NATCODE)
 
 admin_raster <- terra::rasterize(admin,
@@ -178,7 +178,7 @@ terra::global(rainfall, fun = cv, na.rm=TRUE)
 
 1.
 
-* Read in one temperature layer from "../data/raster/Tmean_monthly_2005-2014/".
+* Read in one temperature layer from "/home/rstudio/r-spatial-course/data/raster/Tmean_monthly_2005-2014/".
 * Convert the temperatures in that layer from Celcius to Kelvin.
 
 
