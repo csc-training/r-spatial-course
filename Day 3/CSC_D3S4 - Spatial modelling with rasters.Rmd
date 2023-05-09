@@ -19,7 +19,7 @@ library(sf)
 
 files <- list.files("../Data/raster/RRmon_Monthly_2005-2014/", 
                     full.names = TRUE)
-# rainfall <- lapply(files, terra::rast) #read in all files, output is a list
+rainfall <- lapply(files, terra::rast) #read in all files, output is a list
 ```
 
 Oops, that resulted in an error! that is because one of the files in the folder is not a raster file, but rather an XML metadata file that get created when the raster is opened in, e.g. QGIS. We need to get rid of it from the file list.
