@@ -181,10 +181,16 @@ terra::global(rainfall, fun = cv, na.rm=TRUE)
 * Read in one temperature layer from "../Data/raster/Tmean_monthly_2005-2014/".
 * Convert the temperatures in that layer from Celcius to Kelvin.
 
+```{r}
+
+```
 
 2. 
 
 * Create a zone (rasterize)for a munucipality of your choosing (bigger ones better - use only that municipality polygon when rasterizing)
 * Compute some zonal statistics for that municipality.
 
+```{r}
+
+```
 

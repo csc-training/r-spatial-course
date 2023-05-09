@@ -265,11 +265,12 @@ Write out commands which
 
 3.
 
-* *select* vil_id from villages
-* *filter* five villages. You can use dplyr::filter(), giving it an argument of row numbers, e.g. 1:5
-* create a new village point (st_point -> st_sfc -> st_sf)
-* Give it a new attribute vil_id
-* Attach the new point to the five villages you filtered earlier.
+* *read* in helsinki_buildings.gpkg from the data folder
+* create a new attribute called *"ID"*, and give it values *1:nrow(buildings)*
+* *select* ID from the buildings
+* *filter* five (any five) buildings. You can use dplyr::filter(), giving it an argument of row numbers, e.g. 1:5
+* create another set with another five buildings
+* Attach the two sets together and plot it using plot() command
 
 ```{r}
 

@@ -161,7 +161,7 @@ villages %>%
 * use ggplot and use colour aestethic to visualize the number of villages inside the buffers.
 
 ```{r}
-random_villages <- villages %>%
+random_buildings <- buildings %>% #replace buildings here with the name of your variable from task 1.
   sample_n(10) # take random sample
 ```
 

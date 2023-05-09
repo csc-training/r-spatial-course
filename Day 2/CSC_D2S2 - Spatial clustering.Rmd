@@ -15,7 +15,7 @@ Clustering is the grouping of observations to groups in which the observations a
 
 No training or testing data is needed, unlike in supervised multivariate methods. In addition to non-spatial data, clustering can be applied, for example, to points, raster cells, polygons and trajectories.
 
-There are many clustering algorithms available. In here, we have a brief look at k-means how one might "spatialize" k-means.
+There are many clustering algorithms available. In here, we have a brief look at k-means how one might "spatialize" k-means. We have also a bried look at hierarchical clustering.
 
 ## K-means clustering
 

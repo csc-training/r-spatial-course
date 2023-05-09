@@ -228,11 +228,18 @@ terra::writeRaster(temperature_classified,
 * Crop both rasters to the municipality you chose: the temperature_mean raster and the focal raster you've just created.
 * Plot the rasters - do you see large differences? Compute the difference between the rasters, and plot that too.
 
+```{r}
+
+```
+
 
 3. 
 
 * Reclassify both rasters using just two classes: *hot* and *cold*. Where are the hot and cold parts of the municipality?
 
+```{r}
+
+```
 
 
 
