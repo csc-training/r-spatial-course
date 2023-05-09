@@ -201,12 +201,11 @@ plot(buffer_sf)
 
 
 
-Variable buffer are also possible by giving the input argument dist a vector of the same length as there are features in the {sf} object. Here we take a random buffer 2-10km wide.
+Variable buffer are also possible by giving the input argument dist a vector of the same length as there are features in the {sf} object. Here we take a random buffer 0-10km wide.
 
 ```{r message=FALSE, warning=FALSE}
 # random buffer distances
-buf_dist <- nrow(major_basins) %>% 
-    runif(10000, 30000)
+buf_dist <- runif(nrow(major_basins), 10000, 30000)
 
 # sf
 varbuf_sf <- major_basins %>%

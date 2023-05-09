@@ -6,7 +6,7 @@ output: html_document
 ---
 
 
-Spatial analysis depends on our ability to visualize data, create maps and use them to *see* patterns which often cannot picked up by numerical analysis. In this session we look at basic plotting of {sf} objects using both base R plot() function, as well as ggplot2.
+Spatial analysis depends on our ability to visualize data, create maps and use them to *see* patterns which often cannot picked up by numerical analysis. In this session we look at basic plotting of {sf} objects using both base R *plot()* function, as well as {ggplot2}.
 
 
 

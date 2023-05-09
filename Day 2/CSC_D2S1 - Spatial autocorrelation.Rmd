@@ -27,7 +27,7 @@ rm(package, inst_packages, test)
 
 # Spatial autocorrelation
 
-Spatial autocorrelation occurs when points, or their attributes are not random, but exhibit some kind of spatial relationship. Spatial autocorrelation can be positive (the attribute values are clustered), negative (values are dispersed), or there is no spatial autocorrelation (value distribution is spatially random). In other words, it measures how whether an object is similar to other objects surrounding it.
+Spatial autocorrelation occurs when points, or their attributes are not randomly distributed in space, but exhibit some kind of spatial relationship. Spatial autocorrelation can be positive (the attribute values are clustered), negative (values are dispersed), or there is no spatial autocorrelation (value distribution is spatially random). 
 
 
 
@@ -64,7 +64,7 @@ spdep::moran.test(villages$PovertyRate, knn_listw)
 ```
 
 ```{r}
-# weights based on neighborhoods
+# weights based on polygon neighborhoods
 admin <- sf::read_sf("../Data/LAO_adm1.shp") %>%
     sf::st_transform(32648)
 

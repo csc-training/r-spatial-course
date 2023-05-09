@@ -15,7 +15,7 @@ Clustering is the grouping of observations to groups in which the observations a
 
 No training or testing data is needed, unlike in supervised multivariate methods. In addition to non-spatial data, clustering can be applied, for example, to points, raster cells, polygons and trajectories.
 
-There are many clustering algorithms available. In here, we have a brief look at k-means how one might "spatialize" k-means. We have also a bried look at hierarchical clustering.
+There are many clustering algorithms available. In here, we have a brief look at k-means and how one might "spatialize" k-means. We have also a bried look at hierarchical clustering.
 
 ## K-means clustering
 
@@ -28,7 +28,7 @@ K-means an undeterministic clustering method consisting of the following steps:
 3.3. Recalculate the mean for the affected groups
 3.4. Repeat until no more reassignments are required
 
-The undeterministic behaviour of k-means comes from the random starting clusters, which means that we should do many iterations to achieve a somewhat reliable clusters. In R, kmeans is included in 'base' (additional clustering methods are available in e.g. *cluster* package).
+The undeterministic behaviour of k-means comes from the random starting clusters, which means that we should do many iterations to achieve a somewhat reliable clusters. In R, kmeans is included in {base}. Additional clustering methods are available in e.g. *cluster* package.
 
 ```{r}
 library(dplyr)

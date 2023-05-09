@@ -33,7 +33,6 @@ With the packages installed, let's get on our way. We'll first look how the vect
 # load libraries we will be using here
 library(sf)
 
-# if you're using your own personal computer, you can use the relative path to load the data: "../data/lao_adm1.shp". When using the CSC notebooks, we need to provide the full path.
 file <- "../Data/LAO_adm1.shp"
 ( laos <- sf::st_read(file) ) # yields a data.frame
 ( laos <- sf::read_sf(file) ) # yields a tibble. This is what I personally prefer
@@ -64,7 +63,7 @@ sf::st_write(villages, "../Data/villages.gpkg")
 ## Using {dplyr} verbs with {sf}
 
 
-As mentioned earlier, one of the main advantages of 'sf' over the older 'sp' is the ability to use tidyverse verbs on spatial data. Here we use dplyr function *select* to pick only three columns (attributes) from the total of 26. 
+As mentioned earlier, one of the main advantages of {sf} over the older {sp} is the ability to use tidyverse verbs on spatial data. Here we use dplyr function *select* to pick only three columns (attributes) from the total of 26. 
 
 ```{r}
 library(dplyr)
@@ -99,6 +98,7 @@ But oops! it gave every feature the same number (the total number of villages in
                   Min_literacy = min(LiteracyRate),
                   Max_literacy = max(LiteracyRate)) ) 
 ```
+
 
 We might, however, want to see the summary for each province rather than have the average poverty rate attached to every village. For this, we can *summarise*.
 ```{r}
