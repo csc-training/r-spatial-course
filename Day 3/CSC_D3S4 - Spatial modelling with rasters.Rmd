@@ -18,19 +18,19 @@ library(terra)
 library(dplyr)
 library(sf)
 
-files <- list.files("/home/rstudio/r-spatial-course/Data/raster/RRmon_Monthly_2005-2014/", 
+files <- list.files("../Data/raster/RRmon_Monthly_2005-2014/", 
                     full.names = TRUE)
 rainfall <- lapply(files, terra::rast) #read in all files, output is a list
 rainfall <- do.call("c", rainfall) # stack all rasters together
 
-files <- list.files("/home/rstudio/r-spatial-course/Data/raster/Tmean_Monthly_2005-2014/", 
+files <- list.files("../Data/raster/Tmean_Monthly_2005-2014/", 
                     full.names = TRUE)
 
 temperature <- lapply(files, terra::rast) #read in all files, output is a list
 temperature <- do.call("c", temperature) # stack all rasters together
 
-elevation <- terra::rast("/home/rstudio/r-spatial-course/Data/raster/Elevation_10km.tif") # Digital elevation model
-lakes <- terra::rast("/home/rstudio/r-spatial-course/Data/raster/Lake_10km.tif") # Lake cover
+elevation <- terra::rast("../Data/raster/Elevation_10km.tif") # Digital elevation model
+lakes <- terra::rast("../Data/raster/Lake_10km.tif") # Lake cover
 
 
 ```

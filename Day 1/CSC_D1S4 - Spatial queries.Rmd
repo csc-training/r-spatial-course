@@ -23,8 +23,8 @@ First let's load {sf}, data and create the grid.
 ```{r}
 library(sf)
 library(dplyr)
-villages <- read_sf("/home/rstudio/r-spatial-course/Data/villages.gpkg")
-basins <- read_sf("/home/rstudio/r-spatial-course/Data/basins.gpkg") %>% 
+villages <- read_sf("../Data/villages.gpkg")
+basins <- read_sf("../Data/basins.gpkg") %>% 
   st_set_crs(4326)
 grid_sf <- st_make_grid(basins, n=c(10,10), what="polygons") %>%
     st_sf()
@@ -82,7 +82,7 @@ plot(sf::st_geometry(villages), col='white', pch=16, cex=.5, add=TRUE)
 Another query we could look at is which river segments are within a selected grid cell. 
 
 ```{r message=FALSE, warning=FALSE}
-rivers <- sf::read_sf("/home/rstudio/r-spatial-course/Data/rivers.gpkg") %>% 
+rivers <- sf::read_sf("../Data/rivers.gpkg") %>% 
   sf::st_transform(4326)
 grid_sel <- grid_sf[45,]
 
