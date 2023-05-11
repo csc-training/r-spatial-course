@@ -26,18 +26,26 @@ library(dplyr)
 villages <- read_sf("../Data/villages.gpkg")
 basins <- read_sf("../Data/basins.gpkg") %>% 
   st_set_crs(4326)
+
 grid_sf <- st_make_grid(basins, n=c(10,10), what="polygons") %>%
     st_sf()
 grid_sf$ID <- 1:NROW(grid_sf)
+
+plot(grid_sf)
+plot(villages)
+plot(basins)
 ```
 
 
 ```{r message=FALSE, warning=FALSE}
 grid_sel <- grid_sf[30:40,]
+plot(grid_sel)
 vil_sel <- sf::st_contains(grid_sel, villages, sparse=FALSE)
+
 table(vil_sel)
 dim(vil_sel)
 
+vil_sel[1:5, 1:5]
 ```
 
 We can use the same command to count the number of villages in each grid cell, but for illustrative purpose, we use st_intersects() here. The result is the same for point objects. We'll also put an NA to all grid cells which contain 0 villages, and finally select and plot only those grid cells which contain villages.
@@ -46,6 +54,8 @@ We can use the same command to count the number of villages in each grid cell, b
 
 # count villages
 village_counts <- sf::st_intersects(grid_sf, villages, sparse=FALSE)
+
+table(village_counts)
 dim(village_counts)
 typeof(village_counts)
 
@@ -53,13 +63,14 @@ typeof(village_counts)
 
 ```{r}
 # count true values in each row (grid objects)
-village_counts <- apply(village_counts, 1, sum)
+village_counts <- apply(village_counts, MARGIN = 1, sum)
+village_counts
 
 # attach to grid_sf
 grid_sf$vil_count <- village_counts
 
 plot(grid_sf[,"vil_count"], reset=FALSE)
-plot(sf::st_geometry(villages), col='white', pch=16, cex=.5, add=TRUE)
+plot(sf::st_geometry(villages), col='white', pch=16, cex=.1, add=TRUE)
 ```
 
 ```{r}
@@ -69,7 +80,7 @@ village_counts[village_counts == 0] <- NA
 grid_sf$vil_count <- village_counts
 
 plot(grid_sf[,"vil_count"], reset=FALSE)
-plot(sf::st_geometry(villages), col='white', pch=16, cex=.5, add=TRUE)
+plot(sf::st_geometry(villages), col='white', pch=16, cex=.2, add=TRUE)
 ```
 
 ```{r}
@@ -123,7 +134,8 @@ vil_voronoi <- villages %>%
       sf::st_sf() %>% # in order to attach data
       sf::st_join(villages) %>% # join villages
       sf::st_intersection(st_union(basins)) # clip to basin
-
+vil_voronoi
+plot(vil_voronoi)
 plot(vil_voronoi[,"PovertyRate"])
 
 ```

@@ -33,6 +33,11 @@ basins <- sf::read_sf("../Data/basins.gpkg") %>%
 
 plot(basins, max.plot=3)
 mapview::mapview(basins)
+
+admin <- read_sf("../Data/LAO_adm1.shp")
+
+plot(basins, max.plot = 1, reset=FALSE)
+plot(st_geometry(admin), col = 'red', add=TRUE)
 ```
 
 
@@ -41,9 +46,13 @@ mapview::mapview(basins)
 To transform polygons to different object representations (a line, or a point), we can use the function st_cast(). But before that, we union polygons by attribute (equivalent to Dissolve in QGIS) polygons using their attribute MAIN_BAS. In sf, dissolving happens by grouping and summarising. Note that we can do operations while summarising too: here we find the total area of the dissolved polygons.
 
 ```{r message=FALSE, warning=FALSE}
+basins
+
 major_basins <- basins %>% 
     dplyr::group_by(MAIN_BAS) %>% 
     dplyr::summarize(total_area = sum(SUB_AREA))
+
+major_basins
 
 major_basins_outline <- sf::st_cast(major_basins, "LINESTRING")
 major_basins_nodes <- sf::st_cast(major_basins, "MULTIPOINT")
@@ -78,7 +87,9 @@ There are still some packages around which do not support {sf}, but use the olde
 
 ```{r}
 basins_sp <- as(basins, "Spatial")
+basins_sp
 basins_sf <- sf::st_as_sf(basins_sp)
+basins_sf
 ```
 
 
@@ -89,6 +100,7 @@ Unlike many graphical GIS programs (e.g. ArcGIS, QGIS), R cannot transform objec
 ```{r}
 basins <- sf::read_sf("../Data/basins.gpkg", quiet = TRUE)
 rivers <- sf::read_sf("../Data/rivers.gpkg", quiet = TRUE)
+basins
 sf::st_crs(basins)
 sf::st_crs(rivers)
 
@@ -102,7 +114,7 @@ If we know the CRS of our data, but it is missing from the object, we can set it
 ```{r message=FALSE, warning=FALSE}
 # using EPSG SRID
 basins <- sf::st_set_crs(basins, 4326)
-
+basins
 # using proj.4 string
 basins <- sf::st_set_crs(basins, "+init=epsg:4326")
 # basins <- sf::st_set_crs(basins, "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs")
@@ -120,6 +132,7 @@ Coordinate transformations are likewise easy to achieve using *st_transform()* f
 
 ```{r}
 basins <- sf::st_transform(basins, 32648) 
+basins
 
 # can also transform directly to the CRS of another object:
 # basins <- sf::st_transform(basins, st_crs(rivers)) 
@@ -139,11 +152,12 @@ Here we create major basins from smaller ones by creating a union of the small g
 ```{r message=FALSE, warning=FALSE}
 # The provided st_union() function creates a union of all geometries in the input
 ( major_basins <- st_union(basins) )
+plot(major_basins)
 
 # dissolve to major basins again:
 major_basins <- basins %>% 
     dplyr::group_by(MAIN_BAS) %>% 
-    dplyr::summarize()
+    dplyr::summarize(total_area = sum(SUB_AREA))
 plot(major_basins)
 
 ```
@@ -161,14 +175,16 @@ It will likely be soon fixed.
 
 ```{r message=FALSE, warning=FALSE}
 # st_simplify() takes toleranse in the units of CRS. In our case it is UTM, so the unit is meters.
-simplified_st <- sf::st_simplify(major_basins, dTolerance = 10000)
+simplified_st <- sf::st_simplify(major_basins, dTolerance = 5000)
 plot(simplified_st)
+mapview(simplified_st)
 
 
-# library(rmapshaper, quietly = TRUE)
+library(rmapshaper, quietly = TRUE)
 # keep 1% of nodes. keep_shapes prevents small polygons from disappearing at high simplification
-# simplified_ms <- rmapshaper::ms_simplify(major_basins, keep = 0.01, keep_shapes=TRUE)
-# plot(simplified_ms)
+simplified_ms <- rmapshaper::ms_simplify(major_basins, keep = 0.01, keep_shapes=TRUE)
+plot(simplified_ms)
+mapview(simplified_ms)
 ```
 
 
@@ -196,6 +212,10 @@ buffer_sf <- major_basins %>%
     sf::st_buffer(dist = 15000)
 
 plot(buffer_sf)
+
+major_basins  %>% 
+  sf::st_buffer(dist = 30000) %>% 
+  plot(col = "transparent")
 ```
 
 
@@ -206,7 +226,7 @@ Variable buffer are also possible by giving the input argument dist a vector of 
 ```{r message=FALSE, warning=FALSE}
 # random buffer distances
 buf_dist <- runif(nrow(major_basins), 10000, 30000)
-
+buf_dist
 # sf
 varbuf_sf <- major_basins %>%
     sf::st_centroid() %>% 
@@ -226,7 +246,8 @@ Fishnets or regular grids of points can be created with *st_make_grid()* functio
 The resulting polygon grid is an 'sfc' object, so it needs to be made {sf} in order for us to add the ID-attribute.
 
 ```{r message=FALSE, warning=FALSE}
-grid_sf <- sf::st_make_grid(basins, n=c(10,10), what="polygons") %>%
+grid_sf <- sf::st_make_grid(basins, n=c(10,10), what="polygons",
+                            square = FALSE, flat_topped = TRUE) %>%
     sf::st_sf()
 
 grid_sf$ID <- 1:NROW(grid_sf)
@@ -245,6 +266,7 @@ Say we were interested in villages in a specific river basin. We can take an int
 ```{r message=FALSE, warning=FALSE}
 villages <- sf::read_sf("../Data/villages.gpkg") %>%
     sf::st_transform(32648)
+basins <- st_transform(basins, 32648)
 
 map <- mapview::mapview(villages) + basins
 map
@@ -264,7 +286,9 @@ plot(dplyr::filter(basins, HYBAS_ID == 4061080120) %>%
        dplyr::select(HYBAS_ID), 
      reset=FALSE)
 plot(sf::st_geometry(vil_sel), pch=16, cex=1, col='white', add=TRUE)
-
+# villages
+# basins
+# vil_sel
 ```
 
 
@@ -287,10 +311,16 @@ plot(grid_clip, max.plot=2)
 
 ## Exercises
 
-1. Load districts (KaupunginosajakoPolygon.shp), and *st_transform* admin to *"EPSG:3067"* coordinate system. ggplot it.
+1. Load districts (Kaupunginosajako.kml), and *st_transform* districts to *"EPSG:3067"* coordinate system. ggplot it.
 
 ```{r}
+districts <- read_sf("../Data/Kaupunginosajako.kml") %>% 
+  st_transform(3067) 
+districts
 
+library(ggplot2)
+ggplot() +
+  geom_sf(data = districts)
 ```
 
 
@@ -302,6 +332,14 @@ plot(grid_clip, max.plot=2)
 * Add new attribute called area by using *st_area(geometry)* (or *st_area(geom)*) inside *mutate*.
 
 ```{r}
+districts <- select(districts, nimi_fi)
+buildings <- read_sf("../Data/helsinki_buildings.gpkg") %>% 
+  select(polyg_ala_m2) %>% 
+  st_make_valid()
+
+intersection <- st_intersection(districts, buildings) %>% 
+  mutate(area = st_area(geometry))
+intersection
 
 ```
 
@@ -311,13 +349,22 @@ plot(grid_clip, max.plot=2)
 * Try to find out how many buildings intersect each district. Hint: use *group_by* and *summarise*.
 
 ```{r}
+intersection %>% 
+  group_by(nimi_fi) %>% 
+  summarise(n())
 
+table(intersection$nimi_fi)
 ```
 
 
 
 4. Find out what *st_area()* and *st_length()* do. Attach their results to a polygon or line (e.g. by casting districts from polygon to linestring). You can use base R commands, *dplyr::mutate()*, or use the handy function *tibble::add_column()*.
 ```{r}
-
+dist_areas <- st_area(districts)
+dist_areas
+districts <- tibble::add_column(districts, area_m2 = dist_areas)
+districts
+districts$area_m2_2 <- dist_areas
+districts
 ```
 

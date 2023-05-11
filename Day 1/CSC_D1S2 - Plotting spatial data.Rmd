@@ -41,8 +41,9 @@ And we can control their aestethics in the same way as any base R plot.
 ```{r}
 plot(polygon_with_hole, col='blue')
 plot(line, col='red', lwd=5, add=TRUE)
-plot(line, col='black', lty=2, lwd=3, add=TRUE)
-plot(point, col='black',  pch=16, cex=3, add=TRUE)
+plot(line, col='black', lty=3, lwd=3, add=TRUE)
+plot(point, col='black',  pch=11, cex=1, add=TRUE)
+?pch
 ```
 
 Now let's try with some real data. 
@@ -51,8 +52,8 @@ villages <- sf::read_sf("../Data/villages.gpkg")
 
 plot(villages)
 plot(villages, max.plot=3)
-plot(villages[,"PovertyRate"])
-plot(villages[,"prov_name"])
+plot(villages[,"PovertyRate"], pch = 11)
+plot(villages[, 1])
 plot(sf::st_geometry(villages))
 ```
 
@@ -69,6 +70,8 @@ admin <- sf::read_sf("../Data/LAO_adm1.shp")
 
 plot(villages[,10], reset=FALSE)
 plot(sf::st_geometry(admin), add=TRUE)
+
+?plot.sf
 ```
 
 
@@ -79,7 +82,8 @@ One of the strengths of R is the wonderful visualization package *ggplot2*. We c
 
 ```{r}
 library(ggplot2)
-ggplot() + geom_sf(data = villages, size = 0.2)
+ggplot() + 
+  geom_sf(data = villages, size = 0.2)
 
 ```
 
@@ -121,7 +125,7 @@ The plot, however, also lost the latitude and longitude ticks. We can, also, jus
 ggplot() + 
   geom_sf(data = admin, fill='grey50') + 
   geom_sf(data = villages, aes(color = ToiletType)) + 
-  theme_bw() + # black and white theme for background
+  theme_bw() + # black and white theme for background   # alternative! ggthemes::theme_map()
   labs(title="Villages in Laos", x = "Longitude", y = "Latitude") + # title and axis labels
   scale_colour_viridis_c() +
   theme(panel.grid.major=element_line(colour="transparent")) + # make graticule transparent
@@ -148,8 +152,11 @@ p2 <- ggplot(villages, aes(x = PovertyRate, y = LiteracyRate)) +
 p3 <- ggplot(villages, aes(x = prov_name, y=PovertyRate)) +
   geom_boxplot()
 
-p1 | (p2/p3)
+p1 | p2 | p3
 
+p1 + p2 + p3 + plot_layout(guides = "collect")
+
+# ggsave()
 ```
 
 
@@ -183,20 +190,38 @@ Interactive selection and editing can be done with package 'mapedit', but we wil
 
 1. 
 
-* *read* in helsinki_buildings.gpkg and kaupunginosajako.gpkg from the data folder
+* *read* in helsinki_buildings.gpkg and Kaupunginosajako.kml from the data folder
 * Create a ggplot which shows the districts and buildings.
-* visualize districts as dashed line (*lty = 2*) in the geom_sf() function call.
+* visualize districts as dashed line (*linetype = 2*) in the geom_sf() function call.
 * give the districs a white or transparent *fill* colour.
-* try different *size*  and *color* for the district boundaries.
+* try different *linewidth*  and *color* for the district boundaries.
 
 ```{r}
+buildings <- read_sf("../Data/helsinki_buildings.gpkg")
+buildings
 
+districts <- read_sf("../Data/Kaupunginosajako.kml")
+districts
 
+ggplot() +
+  geom_sf(data = districts, fill = "transparent", linetype = 2,
+          linewidth = 0.5, color = "grey50") +
+  geom_sf(data = buildings)
 ```
 
-2. Create another map zooming into one full province. Hint: Use *filter* to pick one province, and get the bounding box using function *st_bbox()*.
+2. Create another map zooming into one full district. Hint: Use *filter* to pick one district, and get the bounding box using function *st_bbox()*.
 
 ```{r}
+?filter
+library(dplyr)
+bbox <- dplyr::filter(districts, nimi_fi == "MEILAHTI") %>% 
+  st_bbox()
+bbox
 
+ggplot() +
+  geom_sf(data = districts, fill = "transparent", linetype = 2,
+          linewidth = 1, color = "red") +
+  geom_sf(data = buildings) +
+  coord_sf(xlim = c(bbox[1],bbox[3]), ylim = c(bbox[2],bbox[4]))
 ```
 

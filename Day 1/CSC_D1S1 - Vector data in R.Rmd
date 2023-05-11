@@ -46,8 +46,10 @@ We also have an excel sheet with data on Laotian villages which includes coordin
 library(readxl)
 
 villages <- readxl::read_xlsx("../Data/WPI_Laos_2011_v3.xlsx")
-villages <- sf::st_as_sf(villages, coords = c("lon", "lat"), crs = 4326)
+villages
 
+villages <- sf::st_as_sf(villages, coords = c("lon", "lat"), crs = 4326)
+villages
 plot(villages)
 
 ```
@@ -58,6 +60,7 @@ need to do the conversion again, but we could just read in the with {sf}.
 
 ```{r}
 sf::st_write(villages, "../Data/villages.gpkg")
+?st_write
 ```
 
 ## Using {dplyr} verbs with {sf}
@@ -70,6 +73,8 @@ library(dplyr)
 
 ( villages %>% 
     dplyr::select(PovertyRate, LiteracyRate, prov_name) ) 
+
+( select(villages, PovertyRate, LiteracyRate, prov_name) )
 ```
 
 
@@ -102,7 +107,7 @@ But oops! it gave every feature the same number (the total number of villages in
 
 We might, however, want to see the summary for each province rather than have the average poverty rate attached to every village. For this, we can *summarise*.
 ```{r}
-( villages %>% 
+( vil <- villages %>% 
     dplyr::select(PovertyRate, LiteracyRate, prov_name) %>% 
     dplyr::group_by(prov_name) %>%
     dplyr::summarise(n_villages = dplyr::n(),
@@ -110,6 +115,8 @@ We might, however, want to see the summary for each province rather than have th
                      Min_literacy = min(LiteracyRate),
                      Max_literacy = max(LiteracyRate),
                      Range_literacy = Max_literacy - Min_literacy) )  
+vil
+plot(vil)
 ```
 
 
@@ -149,14 +156,17 @@ We sometimes may wish to add features to an existing set. For that, we need both
 
 ```{r}
 coord_matrix <- rbind(c(1.5,1.5), c(1.5,2.5), c(2.5,2.5), c(2.5,1.5))
+coord_matrix
 ( line <- st_linestring(coord_matrix) )
 ```
 
 ```{r}
 polygon_border <- rbind(c(0,0), c(0,3), c(3,3), c(3,0), c(0,0))
+polygon_border
 ( polygon <- st_polygon(list(polygon_border)) )
 
 polygon_hole <- rbind(c(1,1), c(1,2), c(2,2), c(2,1), c(1,1))
+polygon_hole
 ( polygon_with_hole <- st_polygon( list(polygon_border, polygon_hole)) )
 ```
 
@@ -204,6 +214,7 @@ In order to create an sf object, we need to create a simple feature geometry col
 Several 'sfc' objects can be concatenated.
 ```{r}
 point_sfc <- st_sfc(point)
+point_sfc
 line_sfc <- st_sfc(line)
 polygon_sfc <- st_sfc(polygon_with_hole)
 col_sfc <- st_sfc(point, line, polygon_with_hole)
@@ -248,7 +259,9 @@ Write out commands which
 * *filter* a subset of the buildings based on the variable you chose
 
 ```{r}
-
+read_sf("../Data/helsinki_buildings.gpkg") %>% 
+  select(polyg_ala_m2) %>% 
+  filter(polyg_ala_m2 < 100)
 ```
 
 2.
@@ -257,9 +270,20 @@ Write out commands which
 * *select* I_KERROSALA and D_ASHUOALA (total building sq m2, and sq m2 used for apartment space)
 * *mutate* a new variable **proportion**, which is the proportion of D_ASHUOALA from the total I_KERROSALA.
 * *mutate* a new variable *apartment_building* which has value 1 if **proportion** is higher than 0.5, and 0 if below. Hint: you can use **ifelse(condition, true, false)** inside *mutate*
-* *group by* apartment_building and *summarise* the mean D_ASHUOALAfor the two classes
+* *group by* apartment_building and *summarise* the mean D_ASHUOALA for the two classes
 
 ```{r}
+read_sf("../Data/helsinki_buildings.gpkg") %>% 
+  select(I_KERROSALA, D_ASHUOALA) %>% 
+  mutate(proportion = D_ASHUOALA / I_KERROSALA,
+         apartment_building = ifelse(proportion >= 0.5, 1, 0)) %>%
+  group_by(apartment_building) %>% 
+  st_set_geometry(NULL) %>% 
+  summarise(mean(D_ASHUOALA))
+  
+# st_buffer(dist = 0)
+# st_set_geometry(NULL)
+# st_make_valid()
 
 ```
 
@@ -273,7 +297,18 @@ Write out commands which
 * Attach the two sets together and plot it using plot() command
 
 ```{r}
+buildings1 <- read_sf("../Data/helsinki_buildings.gpkg") %>% 
+  mutate(ID = 1:n()) %>% 
+  select(ID) %>% 
+  slice(1:5) # alternative here would be slice()
 
+buildings2 <- read_sf("../Data/helsinki_buildings.gpkg") %>% 
+  mutate(ID = 1:n()) %>% 
+  select(ID) %>% 
+  tail(5)
+
+rbind(buildings1, buildings2) %>% 
+  plot
 ```
 
 
