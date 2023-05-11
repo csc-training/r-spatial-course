@@ -16,5 +16,9 @@ install2.r --error --skipinstalled \
     terra \
     patchwork \
     exactextractr \
-    fasterize
+    fasterize \
+    ncf \
+    inlmisc \
+    elsa \
+    tmap
     
