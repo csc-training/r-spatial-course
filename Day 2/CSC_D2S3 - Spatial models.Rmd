@@ -40,12 +40,14 @@ vil_voronoi <- villages %>%
       sf::st_join(villages) %>% 
       sf::st_intersection(st_union(admin))
 
+plot(vil_voronoi)
 
 # create 'listw' (weight list) object from point distance matrix  
-dmat <- 1/sf::st_distance(villages) %>% 
+dmat <- 1/sf::st_distance(villages)^2 %>% 
   unclass() 
 diag(dmat) <- 0 # set matrix diagonal as 0
 dmat_listw <- spdep::mat2listw(dmat, style = "W")
+dmat_listw
 
 vil_data <- villages %>% sf::st_set_geometry(NULL)
 ```
@@ -56,6 +58,7 @@ sar <- spatialreg::lagsarlm(PovertyRate ~  LiteracyRate + HumanFootprint,
          data=vil_data, 
          dmat_listw)
 summary(sar)
+impacts(sar, listw = dmat_listw)
 
 cor(villages$PovertyRate, sar$fitted.values)^2
 
@@ -81,25 +84,27 @@ In R, GWR has been implemented at least in {GWmodel}, {spgwr}, and in the upcomi
 
 ```{r message=FALSE, warning=FALSE}
 library(GWmodel, quietly=TRUE)
-#transform
+# convert
 villages_sp <- as(villages, "Spatial")
 
 # calculate distance matrix and compute optimal bandwidth for GWR
 dmat <- gw.dist(dp.locat=coordinates(villages_sp))
-bw <- bw.gwr(PovertyRate ~  LiteracyRate + HumanFootprint,  
+dmat
+
+bw <- bw.gwr(PovertyRate ~  LiteracyRate + HumanFootprint + IncomeDependency + TravelTime,   
              villages_sp, kernel = "gaussian")
 ```
 
 The optimal cross-validated bandwidth for this model seems to be approximately 36.5 km. We can then perform GWR using this bandwidth:
 
 ```{r message=FALSE, warning=FALSE}
-vil_gwr <- gwr.basic(PovertyRate ~  LiteracyRate + HumanFootprint, 
+names(villages)
+vil_gwr <- gwr.basic(PovertyRate ~ LiteracyRate + HumanFootprint + IncomeDependency + TravelTime, 
                      villages_sp, kernel = "gaussian", bw = bw, dMat = dmat)
 
 vil_voronoi$pov_GWR <- vil_gwr$SDF$y
 plot(vil_voronoi[,"pov_GWR"])
 plot(vil_voronoi[,"PovertyRate"])
-
 
 ```
 
@@ -121,6 +126,17 @@ Resulting object from GWR contains a lot of useful information:
 * this.call	- the function call used.
 * Ftest.res - results of Leung's F tests when F123.test is TRUE.
 
+```{r}
+summary(vil_gwr$lm)
+
+gwr_sf <- vil_gwr$SDF %>% st_as_sf()
+
+plot(gwr_sf)
+
+class(vil_gwr)
+
+```
+
 
 
 
@@ -137,7 +153,23 @@ Resulting object from GWR contains a lot of useful information:
 * plot the residuals (can be obtained from *vil_gwr$SDF$residual*)
 
 ```{r}
+villages <- read_sf("../Data/villages.gpkg") %>% 
+  st_transform(32648) %>% 
+  sample_n(500) 
+vil_sp <- as(villages, "Spatial")
 
+dmat <- gw.dist(dp.locat=coordinates(vil_sp))
+names(villages)
+bw <- bw.gwr(PovertyRate ~  wIrrigatedArea + SoilDegradation + IncomeDependency + DrinkWaterSource,   
+             vil_sp, kernel = "gaussian")
+
+vil_gwr <- gwr.basic(PovertyRate ~ wIrrigatedArea + SoilDegradation + IncomeDependency + DrinkWaterSource,   
+                     vil_sp, kernel = "gaussian", bw = bw, dMat = dmat)
+vil_gwr
+
+gwr_sf <- vil_gwr$SDF %>% st_as_sf()
+
+plot(gwr_sf[,"residual"])
 ```
 
 
@@ -146,6 +178,20 @@ Resulting object from GWR contains a lot of useful information:
 * Estimate the same model using a SAR model
 
 ```{r}
+# create 'listw' (weight list) object from point distance matrix  
+dmat <- 1/sf::st_distance(villages)^2 %>% 
+  unclass() 
+diag(dmat) <- 0 # set matrix diagonal as 0
+dmat_listw <- spdep::mat2listw(dmat, style = "W")
+
+vil_data <- villages %>% sf::st_set_geometry(NULL)
+
+sar <- spatialreg::lagsarlm(PovertyRate ~ wIrrigatedArea + SoilDegradation + IncomeDependency + DrinkWaterSource,    
+         data=vil_data, 
+         dmat_listw)
+summary(sar)
+
+spdep::moran.test(gwr_sf$residual, dmat_listw)
 
 ```
 

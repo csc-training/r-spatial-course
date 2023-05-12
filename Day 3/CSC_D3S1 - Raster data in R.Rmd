@@ -30,10 +30,12 @@ Let's first create two rasters from scratch.
 
 ```{r create matrix template}
 library(terra)
-library(paletteer)
+library(paletteer) # for colour palettes
 
 side <- 15
 empty_mat <- matrix(0, nrow = side, ncol = side)
+empty_mat
+
 
 mat1 <- empty_mat
 for(i in 1:side) {
@@ -43,6 +45,8 @@ for(i in 1:side) {
 # look at the matrix, convert it to a raster and plot the raster
 mat1
 r1 <- terra::rast(mat1)
+r1
+
 terra::ext(r1) <- c(0,side,0,side) # set extent
 plot(r1)
 ```
@@ -53,8 +57,11 @@ Let's do another kind of raster, this time filled with random numbers.
 ```{r}
 mat2 <- matrix(runif(length(empty_mat),0,10), nrow=side, ncol=side)
 r2 <- terra::rast(mat2)
-terra::ext(r2) <- c(0,side,0,side) # set extent
+# terra::ext(r2) <- c(0,side,0,side) # set extent (redundant because the extent was automatically set)
 plot(r2, col = paletteer::paletteer_c("grDevices::Viridis", 10))
+
+paletteer::paletteer_c("grDevices::Viridis", 10)
+plot(paletteer::paletteer_c("grDevices::Viridis", 10))
 ```
 
 
@@ -65,8 +72,8 @@ library(elsa)
 r1 <- raster::raster(r1)
 r2 <- raster::raster(r2)
 
-elsa::moran(r1, d1 = 0, d2 = 10)
-elsa::moran(r2, dl = 0, d2 = 10)
+elsa::moran(r1, d1 = 0, d2 = 5)
+elsa::moran(r2, dl = 0, d2 = 5)
 ```
 Just as expected. {elsa} has functions for a number of other spatial autocorrelation options too.
 
@@ -75,14 +82,16 @@ The raster values can be easily modified and stacked.
 ```{r}
 
 r1 <- terra::rast(r1) # convert back to terra
+plot(r1)
 
 r1 + 5
 sqrt(r1)
 r1^2
 1 / r1
 
-stack <- c(r1, r1+5, r1^2, 1/r1)
-names(stack) <- c("add 5", "square root", "square", "division")
+stack <- c(r1, r1+5, sqrt(r1), r1^2, 1/r1)
+stack
+names(stack) <- c("original", "add 5", "square root", "square", "division")
 plot(stack)
 
 ```
@@ -97,9 +106,9 @@ Let's read in the elevation model of Finland included in the data and inspect it
 ```{r}
 
 elevation <- terra::rast("../Data/raster/Elevation_10km.tif")
-
+elevation
 summary(elevation)
-ext(elevation) # this is the boundinx box of the raster
+ext(elevation) # this is the bounding box of the raster
 plot(elevation, col = paletteer::paletteer_c("viridis::viridis", 100))
 
 elevation[elevation == 0] <- NA
@@ -131,6 +140,17 @@ global(stack, mean)
 * plot a histogram using *hist()*
 
 ```{r}
+library(terra)
+temp1 <- rast("../Data/raster/Tmean_Monthly_2005-2014/Tmon_20050101.tif")
+temp2 <- rast("../Data/raster/Tmean_Monthly_2005-2014/Tmon_20050201.tif")
+temp3 <- rast("../Data/raster/Tmean_Monthly_2005-2014/Tmon_20050301.tif")
+
+stack <- c(temp1, temp2, temp3)
+
+mean(stack)
+global(stack, mean, na.rm=TRUE)
+
+hist(stack)
 
 ```
 
@@ -142,6 +162,8 @@ global(stack, mean)
 
 
 ```{r}
+plot(stack, col = paletteer::paletteer_c("scico::turku", 10))
+
 
 ```
 
