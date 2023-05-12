@@ -16,6 +16,7 @@ files <- list.files("../Data/raster/RRmon_Monthly_2005-2014/",
                     full.names = TRUE)
 
 rainfall <- lapply(files, terra::rast) #read in all files, output is a list
+files
 ```
 
 Oops! There are some non-raster files in the file list with the extension ".tif.aux.xml"! These are created e.g. when the raster file is opened in a Desktop GIS. Let's get rid of them and try again!
@@ -25,12 +26,12 @@ Oops! There are some non-raster files in the file list with the extension ".tif.
 files <- list.files("../Data/raster/RRmon_Monthly_2005-2014/", 
                     full.names = TRUE)
 files <- files[!grepl(".xml", files)] # deselect all files which contain string ".xml"
+files
 
-
-rainfall <- lapply(files, terra::rast) #read in all files, output is a list
-rainfall <- do.call("c", rainfall) # stack all rasters together
-
-plot(rainfall)
+# rainfall <- lapply(files, terra::rast) #read in all files, output is a list
+# rainfall <- do.call("c", rainfall) # stack all rasters together
+rainfall <- terra::rast(files)
+plot(rainfall[[1]])
 ```
 
 
@@ -63,7 +64,7 @@ cv <- function(x, na.rm=FALSE) {
     return(stdev/mn)
 }
 
-# cv(rainfall) this fails!
+# cv(rainfall) #this fails!
 
 rainfall_cv <- terra::app(rainfall, fun = cv)
 
@@ -87,20 +88,26 @@ rainfall_cv_50km <- terra::focal(rainfall[[1]],
 
 plot(rainfall_cv_50km)
 
-
-
 ```
 
 Focal does not (yet) support multiple layers, but we can overcome this issue with some tricks:
 
 ```{r}
 
-rainfall_cv_50km <- lapply(1:12, function(i) {
+rainfall_cv <- terra::focal(rainfall,
+                            w = 5,
+                            fun = cv,
+                            na.rm=TRUE)
+plot(rainfall_cv)
+
+
+
+rainfall_cv_2 <- lapply(1:12, function(i) {
     cv_50km <- terra::focal(rainfall[[i]], w = 5, fun = cv)
     return(cv_50km)
 }) %>% do.call("c", .)
 
-plot(rainfall_cv_50km)
+plot(rainfall_cv_2)
 ```
 
 
@@ -112,7 +119,7 @@ Zonal functions have not been addressed yet. In zonal operations, some function 
 ```{r}
 
 temperature_zones <- rast("../Data/raster/temperature_classified.tif")
-
+plot(temperature_zones)
 
 ( zonal_rainfall <- terra::subset(rainfall, 1:60) %>% 
         terra::zonal(temperature_zones, fun = mean) )
@@ -125,6 +132,7 @@ library(stringr)
 data <- tidyr::gather(zonal_rainfall, date, rainfall, -mean) %>% 
     mutate(date = lubridate::as_date(stringr::word(date, 2, sep = "_" )),
            zone = factor(mean))
+data
 
 ggplot(data) +
     geom_line(aes(date, rainfall, color = zone)) +
@@ -137,14 +145,17 @@ What if we'd like to know the mean rainfall in each of Finland's municipalities?
 ```{r}
 
 admin <- terra::vect("../Data/raster/SuomenKuntajako_2021_100k.shp")
+admin
 admin$NATCODE <- as.numeric(admin$NATCODE)
 
 admin_raster <- terra::rasterize(admin,
                                  rainfall, # this is the target raster which is used for rasterization
                                  field = "NATCODE") # which attribute we're rasterizing 
 
+plot(admin_raster)
 
 rainfall_admin <- terra::zonal(mean(rainfall), admin_raster, fun = mean, na.rm=TRUE)
+rainfall_admin
 
 rainfall_admin <- admin %>% 
     sf::st_as_sf() %>% 
@@ -154,6 +165,7 @@ rainfall_admin <- admin %>%
 
 rainfall_admin
 
+plot(rainfall_admin[,"mean"])
 ```
 
 
@@ -182,6 +194,12 @@ terra::global(rainfall, fun = cv, na.rm=TRUE)
 * Convert the temperatures in that layer from Celcius to Kelvin.
 
 ```{r}
+files <- list.files("../Data/raster/Tmean_Monthly_2005-2014/",
+                    full.names = TRUE)
+files
+temp <- rast(files[2])
+
+plot(temp + 273.15)
 
 ```
 
@@ -191,6 +209,17 @@ terra::global(rainfall, fun = cv, na.rm=TRUE)
 * Compute some zonal statistics for that municipality.
 
 ```{r}
+muonio <- admin[1,]
+muonio
 
+muonio_r <- rasterize(muonio, temp, field = "NATCODE")
+
+plot(muonio_r)
+
+zonal(temp, muonio_r, fun = "mean", na.rm=TRUE)
+
+zonal(temp, vect(muonio), fun = "mean", na.rm=TRUE)
+
+plot(as.polygons(muonio_r)) # raster -> polygon conversion
 ```
 

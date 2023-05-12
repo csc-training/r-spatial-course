@@ -39,6 +39,7 @@ temperature <- do.call("c", temperature) # stack all rasters together
 elevation <- terra::rast("../Data/raster/Elevation_10km.tif") # Digital elevation model
 lakes <- terra::rast("../Data/raster/Lake_10km.tif") # Lake cover
 
+plot(lakes)
 
 ```
 
@@ -48,8 +49,6 @@ Let's run a linear model looking at the changes in temperature and rainfall in 2
 
 
 ```{r}
-
-
 ### Define functions to fit a model and extract relevant information ###
 # For obtaining estimated model coefficients
 fun_model <- function(x) { 
@@ -73,7 +72,42 @@ plot(rainfall_coef)
 temperature_coef <- terra::app(temperature, fun = fun_model)
 names(temperature_coef) <- c("Intercept", "Slope", "p_int", "p_slope")
 plot(temperature_coef)
+```
 
+Lets have a look what happens inside each cell!
+```{r}
+# trend over the 10 years
+timeseries <- extract(temperature, matrix(c(478689.9, 6761775), ncol=2))
+timeseries <- unlist(timeseries)
+timeseries
+length(timeseries)
+month <- 1:length(timeseries)
+
+
+trend_model <- lm(timeseries ~ month)
+
+summary(trend_model)
+coefficients <- trend_model$coefficients
+coefficients
+
+plot(timeseries)
+lines(timeseries)
+abline(a = coefficients[1], b = coefficients[2])
+
+#february trend
+feb_ts <- timeseries[seq(2, 120, by = 12)]
+feb_ts
+year <- 1:10
+
+trend_model_feb <- lm(feb_ts ~ year)
+
+summary(trend_model_feb)
+coefficients <- trend_model_feb$coefficients
+coefficients
+
+plot(feb_ts)
+lines(feb_ts)
+abline(a = coefficients[1], b = coefficients[2])
 
 ```
 
@@ -132,6 +166,7 @@ plot(stack)
 
 data <- terra::as.data.frame(stack, xy = TRUE)
 data
+
 trainset <- sample(1:nrow(data), floor(nrow(data)*0.50)) %>% 
     sort()
 trainset
@@ -144,7 +179,7 @@ summary(model_fit) # very good!
 # Evaluate with the trainig data
 prediction <- predict(model_fit, newdata = data[-trainset, ])
 
-cor(prediction, data$Tmon_20110701[-trainset])^2
+cor(prediction, data$Tmon_20110701[-trainset], use = "complete.obs")^2
 
 ```
 
@@ -186,11 +221,14 @@ names(xy_raster) <- c("x", "y")
 
 prediction_stack <- c(xy_raster, stack)
 prediction_stack
+
 prediction_raster <- terra::predict(prediction_stack, model_fit)
 
 
 plot(c(prediction_raster, july2011))
 
+
+options(scipen=999)
 ```
 
 
@@ -216,7 +254,7 @@ points(random_points)
 
 # extract data and fit a model
 fitting_data <- terra::extract(stack, random_points, xy = TRUE) %>% 
-    dplyr::filter(!is.nan(Tmon_20110701))
+    dplyr::filter(!is.na(Tmon_20110701))
 fitting_data
 
 model_fit_points <- lm(Tmon_20110701 ~ x + y + Elevation_10km, 
@@ -246,7 +284,18 @@ plot(c(prediction_interpolated, july2011))
 * plot
 
 ```{r}
+prediction_stack <- c(prediction_stack, lakes)
+plot(prediction_stack)
 
+lakes_data <- terra::as.data.frame(prediction_stack, xy = TRUE)
+
+lakes_model_fit <- lm(Tmon_20110701 ~ x + y + Elevation_10km + Lake_10km, data = lakes_data[trainset, ])
+
+summary(model_fit)
+summary(lakes_model_fit)
+lakes_prediction_raster <- terra::predict(prediction_stack, lakes_model_fit)
+
+plot(c(no_lakes = prediction_raster, lakes = lakes_prediction_raster, july2011))
 
 ```
 
@@ -259,5 +308,17 @@ plot(c(prediction_interpolated, july2011))
 
 ```{r}
 
+predict_data <- as.data.frame(lakes_prediction_raster, xy = TRUE)
+observed_data <- as.data.frame(july2011, xy = TRUE)
+
+task2_data <- dplyr::left_join(predict_data, observed_data, by = c("x", "y")) 
+task2_data
+
+cor(task2_data$lyr1, task2_data$Tmon_20110701, use = "complete.obs")
+error <- task2_data$lyr1 - task2_data$Tmon_20110701
+
+mean(error, na.rm=TRUE)
+
+plot(task2_data$Tmon_20110701, error)
 ```
 

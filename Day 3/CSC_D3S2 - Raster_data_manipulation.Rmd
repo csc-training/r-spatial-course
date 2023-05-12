@@ -20,6 +20,7 @@ library(tmap)
 admin <- sf::read_sf("../Data/raster/SuomenKuntajako_2021_100k.shp")
 helsinki <- dplyr::filter(admin, NAMEFIN == "Helsinki")
 plot(admin)
+plot(helsinki)
 
 ```
 
@@ -30,10 +31,23 @@ Read in a list of files.
 files <- list.files("../Data/raster/Tmean_Monthly_2005-2014/", 
                     full.names = TRUE)
 
-temperature <- lapply(files, terra::rast) #read in all files, output is a list
-temperature <- do.call("c", temperature) # stack all rasters together
+files
 
+temperature <- lapply(files, terra::rast) #read in all files, output is a list
+temperature
+length(temperature)
+
+temperature <- do.call("c", temperature) # stack all rasters together
+temperature
 plot(temperature)
+
+temperature2 <- terra::rast(files)
+temperature2
+
+temperature
+temperature2
+
+terra::all.equal(temperature, temperature2)
 ```
 
 
@@ -46,7 +60,10 @@ terra::crs(temperature)
 helsinki <- sf::st_transform(helsinki, terra::crs(temperature))
 
 # we could project the raster with:
-# temperature <- terra::project(temperature, sf::st_crs(helsinki))
+temperature2 <- terra::project(temperature, terra::crs(helsinki))
+
+# works with terra's crs()
+# or by extracting the well-known text from sf like this:   sf::st_crs(helsinki)$wkt
 ```
 
 
@@ -56,11 +73,18 @@ Now we can find out all the values in the raster stack for Helsinki! to do this 
 
 ```{r}
 helsinki_terra <- terra::vect(helsinki)
+helsinki_terra
+
+
 helsinki_temps <- terra::extract(temperature, helsinki_terra)
+helsinki_temps
+
+## for super large rasters / thousands/millions polygons, use exactextractr package
 
 helsinki_temps <- dplyr::summarise_all(helsinki_temps, mean, na.rm=TRUE) %>% 
     tidyr::gather(date, temperature, -ID) %>% 
-    dplyr::mutate(date = stringr::word(date, 2, sep = "_"))
+    dplyr::mutate(date = stringr::word(date, 2, sep = "_"),
+                  date = as.Date(date, format = "%Y%M%d")) 
 
 helsinki_temps
 plot(helsinki_temps[,3])
@@ -73,28 +97,44 @@ lines(helsinki_temps[,3])
 Aggregation is done by providing the function a factor - how many cells in each direction are used to aggregate. The temperature has a resolution of 10km. Aggregating by factor 4 yields a raster with resolution of 40km (by 40km).
 
 ```{r}
-temp_40km <- terra::aggregate(temperature, fact = 4, fun = mean)
-plot(temp_40km)
+temperature
+temp_40km <- terra::aggregate(temperature, fact = 4, fun = mean, na.rm = TRUE)
+plot(temp_40km[[1]])
+plot(temperature[[1]])
 ```
 
 We can also disaggregate - but the original values cannot be returned!
 
 ```{r}
-temp_10km <- terra::disagg(temp_40km, fact = 4, method = "bilinear")
+temp_10km <- terra::disagg(temp_40km, fact = 4, method = "near")
 temp_10km
 
 temp_difference <- temp_10km - temperature
 
 plot(temp_difference[[1]])
+
+temp_5km <- disagg(temperature, fact=2, method = "near")
+plot(temp_5km[[1]])
+
+temp_35km <- aggregate(temp_5km, fact=7, fun = mean)
+temp_35km
+
+temp_70km <- aggregate(temperature, factor = 7, fun = mean)
+temp_35km_2 <- disagg(temp_70km, fact=2, method = "near")
+
+diff <- temp_35km - resample(temp_35km_2, temp_35km, method="near")
+
+plot(diff[[1]])
 ```
 
 Resampling can achieve both. But are they the same - no!
 
 ```{r}
-
-temp_40km_resampled <- terra::resample(temperature, temp_40km, method = "bilinear")
-plot(temp_40km_resampled)
-plot(temp_40km - temp_40km_resampled)
+temperature
+temp_40km
+temp_40km_resampled <- terra::resample(temperature, temp_40km, method = "average")
+plot(temp_40km_resampled[[1]])
+plot(temp_40km[[1]] - temp_40km_resampled[[1]])
 
 ```
 
@@ -112,7 +152,7 @@ Turku_temps <- terra::crop(temperature,
                            snap = "out")
 
 plot(Turku_temps[[1]])
-plot(sf::st_geometry(admin), add=TRUE)
+plot(sf::st_geometry(admin %>% filter(NAMEFIN == "Turku")), add=TRUE)
 
 
 ```
@@ -130,7 +170,7 @@ temperature_smoothed <- terra::focal(temperature,
                                      fun = mean,
                                      na.rm=TRUE)
 
-plot(temperature_smoothed)
+plot(temperature_smoothed[[1]])
 plot(temperature[[1]])
 
 ```
@@ -138,7 +178,7 @@ plot(temperature[[1]])
 We can also define the neighbourhood in other ways:
 ```{r}
 temperature_smoothed <- terra::focal(temperature[[1]],
-                                     w = c(3,ncol(temperature)-1),
+                                     w = c(nrow(temperature)-1, 3),
                                      fun = mean,
                                      na.rm=TRUE)
 plot(temperature_smoothed)
@@ -154,11 +194,11 @@ or with matrices:
 
 ```{r}
 
-weight_matrix <- matrix(1, nrow = nrow(temperature)-1, ncol = 1)
-
+weight_matrix <- matrix(runif(5*7), nrow = 5, ncol = 7)
+weight_matrix
 temperature_smoothed <- terra::focal(temperature[[1]],
                                      w = weight_matrix,
-                                     fun = mean,
+                                     fun = sum,
                                      na.rm=TRUE)
 
 plot(temperature_smoothed)
@@ -174,18 +214,19 @@ plot(temperature_smoothed)
 
 The final part of this lesson shows reclassification. Here we divide Finland into classes based on mean temperature.
 
-But before that, lets compute the mean temeprature at each cell over the 10-year period 2005-2014, and find "optimal" class intervals.
+But before that, lets compute the mean temperature at each cell over the 10-year period 2005-2014, and find "optimal" class intervals.
 
 ```{r}
 
 temperature_mean <- mean(temperature)
+plot(temperature_mean)
 
 library(classInt)
 
 intervals <- classIntervals(terra::values(temperature_mean),
                             n = 4,
                             style = "quantile")
-
+intervals
 reclass_matrix <- matrix(c(-Inf, intervals$brks[1], 1,
                            intervals$brks[1], intervals$brks[2], 2,
                            intervals$brks[2], intervals$brks[3], 3,
@@ -193,12 +234,12 @@ reclass_matrix <- matrix(c(-Inf, intervals$brks[1], 1,
                            intervals$brks[4], Inf, 5),
                          ncol = 3,
                          byrow = TRUE)
-
+reclass_matrix
 temperature_classified <- terra::classify(temperature_mean,
                                           reclass_matrix)
 
 plot(temperature_classified)
-
+table(values(temperature_classified))
 ```
 
 
@@ -206,7 +247,8 @@ And finally, let's save that raster for later use.
 ```{r}
 
 terra::writeRaster(temperature_classified, 
-                   filename = "../Data/raster/temperature_classified.tif")
+                   filename = "../Data/raster/temperature_classified.tif",
+                   overwrite = TRUE)
 
 
 ```
@@ -221,6 +263,28 @@ terra::writeRaster(temperature_classified,
 * Choose a municipality from the municipality dataset (larger municipalities are better). Crop the temperature raster stack to that municipality.
 * find the mean, min, and max temperatures for that municipality over the period 2005-2014 (the full raster stack)
 
+```{r}
+inari <- admin %>% filter(NAMEFIN == "Inari")
+plot(inari)
+temp_inari <- crop(temperature, inari)
+
+new_func <- function(x, na.rm=FALSE) {
+  mn <- mean(x, na.rm = na.rm)
+  min <- min(x, na.rm = na.rm)
+  max <- max(x, na.rm = na.rm)
+  return(c(mean = mn, min = min, max = max))
+}
+global(temp_inari, fun = new_func, na.rm=TRUE)
+
+global(temp_inari, c("mean", "min", "max"), na.rm=TRUE)
+
+global(temp_inari, mean, na.rm=TRUE)
+global(temp_inari, min, na.rm=TRUE)
+global(temp_inari, max, na.rm=TRUE)
+
+mean_inari <- mean(temp_inari)
+plot(mean_inari)
+```
 
 2. 
 
@@ -229,7 +293,10 @@ terra::writeRaster(temperature_classified,
 * Plot the rasters - do you see large differences? Compute the difference between the rasters, and plot that too.
 
 ```{r}
+focal_mean <- focal(mean_inari, w = 3, fun = mean)
 
+inari_stack <- c(mean_inari, focal_mean)
+plot(inari_stack)
 ```
 
 
@@ -238,6 +305,16 @@ terra::writeRaster(temperature_classified,
 * Reclassify both rasters using just two classes: *hot* and *cold*. Where are the hot and cold parts of the municipality?
 
 ```{r}
+mean_temp <- global(mean_inari, mean, na.rm=TRUE)
+mean_temp
+
+reclass_mat <- matrix(c(-Inf, mean_temp$mean, 0,
+                        mean_temp$mean, Inf, 1),
+                         ncol = 3,
+                         byrow = TRUE)
+reclass_mat
+hotcold_inari <- terra::classify(mean_inari, rcl = reclass_mat)
+plot(hotcold_inari)
 
 ```
 
