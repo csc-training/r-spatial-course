@@ -25,7 +25,7 @@ plot(helsinki)
 ```
 
 
-Read in a list of files.
+Read in a list of files in a few different ways.
 
 ```{r}
 files <- list.files("../Data/raster/Tmean_Monthly_2005-2014/", 
@@ -47,7 +47,8 @@ temperature2
 temperature
 temperature2
 
-terra::all.equal(temperature, temperature2)
+# Compare the 2 stacks, requiers newer version of Terra to work.
+# terra::all.equal(temperature, temperature2)
 ```
 
 
@@ -268,6 +269,7 @@ inari <- admin %>% filter(NAMEFIN == "Inari")
 plot(inari)
 temp_inari <- crop(temperature, inari)
 
+# Calculate the same thing in a few different ways.
 new_func <- function(x, na.rm=FALSE) {
   mn <- mean(x, na.rm = na.rm)
   min <- min(x, na.rm = na.rm)
@@ -276,7 +278,8 @@ new_func <- function(x, na.rm=FALSE) {
 }
 global(temp_inari, fun = new_func, na.rm=TRUE)
 
-global(temp_inari, c("mean", "min", "max"), na.rm=TRUE)
+# Requires newer version of Terra to work.
+# global(temp_inari, c("mean", "min", "max"), na.rm=TRUE)
 
 global(temp_inari, mean, na.rm=TRUE)
 global(temp_inari, min, na.rm=TRUE)
