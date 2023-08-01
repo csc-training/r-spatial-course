@@ -18,7 +18,7 @@ library(dplyr)
 library(sf)
 
 files <- list.files("../Data/raster/RRmon_Monthly_2005-2014/", 
-                    full.names = TRUE)
+                    full.names = TRUE, pattern = "*.tif$")
 rainfall <- lapply(files, terra::rast) #read in all files, output is a list
 ```
 
