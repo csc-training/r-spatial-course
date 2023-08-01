@@ -59,7 +59,7 @@ With the conversion done, let's save the data in a spatial format so that we don
 need to do the conversion again, but we could just read in the with {sf}.
 
 ```{r}
-sf::st_write(villages, "../Data/villages.gpkg")
+sf::st_write(villages, "../Data/villages.gpkg", append=FALSE)
 ?st_write
 ```
 
@@ -74,7 +74,7 @@ library(dplyr)
 ( villages %>% 
     dplyr::select(PovertyRate, LiteracyRate, prov_name) ) 
 
-( select(villages, PovertyRate, LiteracyRate, prov_name) )
+( dplyr::select(villages, PovertyRate, LiteracyRate, prov_name) )
 ```
 
 
@@ -260,8 +260,8 @@ Write out commands which
 
 ```{r}
 read_sf("../Data/helsinki_buildings.gpkg") %>% 
-  select(polyg_ala_m2) %>% 
-  filter(polyg_ala_m2 < 100)
+  dplyr::select(polyg_ala_m2) %>% 
+  dplyr::filter(polyg_ala_m2 < 100)
 ```
 
 2.
@@ -274,10 +274,10 @@ read_sf("../Data/helsinki_buildings.gpkg") %>%
 
 ```{r}
 read_sf("../Data/helsinki_buildings.gpkg") %>% 
-  select(I_KERROSALA, D_ASHUOALA) %>% 
-  mutate(proportion = D_ASHUOALA / I_KERROSALA,
+  dplyr::select(I_KERROSALA, D_ASHUOALA) %>% 
+  dplyr::mutate(proportion = D_ASHUOALA / I_KERROSALA,
          apartment_building = ifelse(proportion >= 0.5, 1, 0)) %>%
-  group_by(apartment_building) %>% 
+  dplyr::group_by(apartment_building) %>% 
   st_set_geometry(NULL) %>% 
   summarise(mean(D_ASHUOALA))
   
@@ -298,13 +298,13 @@ read_sf("../Data/helsinki_buildings.gpkg") %>%
 
 ```{r}
 buildings1 <- read_sf("../Data/helsinki_buildings.gpkg") %>% 
-  mutate(ID = 1:n()) %>% 
-  select(ID) %>% 
+  dplyr::mutate(ID = 1:n()) %>% 
+  dplyr::select(ID) %>% 
   slice(1:5) # alternative here would be slice()
 
 buildings2 <- read_sf("../Data/helsinki_buildings.gpkg") %>% 
-  mutate(ID = 1:n()) %>% 
-  select(ID) %>% 
+  dplyr::mutate(ID = 1:n()) %>% 
+  dplyr::select(ID) %>% 
   tail(5)
 
 rbind(buildings1, buildings2) %>% 
