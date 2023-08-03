@@ -22,9 +22,13 @@ Last instructor led course was on 10-12-5.2023: https://ssl.eventilla.com/event/
 * D3S3 Map algebra
 * D3S4 Spatial modelling with raster data
 
-### Self-study options
+### Self-study recommendations
 * Vector data exercises (Days 1  and 2) should be done in the given order, with possibility to skip to visualization before finishing some of the sessions before it.
-* Raster data exercises (Day 3) can be done as own module, without doing the vector data exercises. 
+* Raster data exercises (Day 3) can be done as own module, without doing the vector data exercises.
+* Use [CSC Notebooks](https://notebooks.rahtiapp.fi/) as exercise environment,
+  * Start `Spatial data analysis with R` public application, which has a copy of this repository.
+  * CSC Notebooks has rather limited memory, so after each session restart R from Session menu.
+  * The public notebook does not save any files at session end, so export any files you want before finishing.
 
 ## Prerequisites
 * Basics of geoinformatics and geostatistics
