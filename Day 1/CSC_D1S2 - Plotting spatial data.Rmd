@@ -164,7 +164,7 @@ p1 + p2 + p3 + plot_layout(guides = "collect")
 
 One of the main issues in using R for GIS is the lack of interactivity. However, recent new packages have considerably improved R's capabilities in this sector. One such package is 'mapview', which automatically creates a Leaflet-map from a large list of input classes (including {sf}, 'sp', and 'raster'). Usage of mapview is simple:
 
-```{r include=FALSE}
+```{r}
 library(mapview)
 
 mapview(villages)
