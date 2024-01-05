@@ -13,7 +13,7 @@ Let's start the second day making sure we have everything required installed.
 
 ```{r}
 inst_packages <- installed.packages()
-for (package in c("dplyr", "sf", "spdep", "ncf", "units", "inlmisc",
+for (package in c("dplyr", "sf", "spdep", "ncf", "units", 
                   "spatstat", "fpc", "GWmodel", "NbClust", "patchwork", 
                   "spatialreg")) {
     test <- package %in% inst_packages[,1]
