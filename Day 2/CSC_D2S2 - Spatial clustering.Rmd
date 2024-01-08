@@ -288,8 +288,8 @@ savannakhet$cluster <- factor(clusters$cluster)
 ggplot(savannakhet) + 
   geom_sf(aes(color = cluster)) +
   geom_sf(data = admin %>% filter(NAME_1 == "Savakhannet"), fill = "transparent", colour = "black") +
-
-  scale_color_manual(name="Cluster", values = inlmisc::GetColors(4)) +
+  scale_fill_brewer(palette = "Accent") +
+  labs(title = "Cluster") +
 theme_bw()
 admin
 ```
