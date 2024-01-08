@@ -92,7 +92,8 @@ voronoi$cluster <- factor(clusters$cluster)
 p1 <- ggplot(voronoi) + 
   geom_sf(aes(fill = cluster), color = "transparent") +
   geom_sf(data = admin, fill = "transparent", colour = "black") +
-  scale_fill_manual(name="Cluster", values = inlmisc::GetColors(4))
+  scale_fill_brewer(palette = "Accent")+
+  labs(title = "Cluster")
 p1
 ```
 
@@ -179,7 +180,8 @@ voronoi$cluster_XY <- factor(clusters$cluster)
 p2 <- ggplot(voronoi) + 
   geom_sf(aes(fill = cluster_XY), color = "transparent") +
   geom_sf(data = admin, fill = "transparent", colour = "black") +
-  scale_fill_manual(name="Cluster_XY", values = inlmisc::GetColors(4))
+  scale_fill_brewer(palette = "Accent") +
+  labs(title = "Cluster_XY")
 p2
 
 # BOXPLOT
@@ -244,7 +246,8 @@ voronoi$cluster_scaled <- factor(clusters_cut)
 p3 <- ggplot(voronoi) + 
   geom_sf(aes(fill = cluster_scaled), color = "transparent") +
   geom_sf(data = admin, fill = "transparent", colour = "black") +
-  scale_fill_manual(name="Cluster_scaled", values = inlmisc::GetColors(6))
+  scale_fill_brewer(palette = "Accent") +
+  labs(title = "Cluster_scaled")
 p3
 ```
 
@@ -285,6 +288,7 @@ savannakhet$cluster <- factor(clusters$cluster)
 ggplot(savannakhet) + 
   geom_sf(aes(color = cluster)) +
   geom_sf(data = admin %>% filter(NAME_1 == "Savakhannet"), fill = "transparent", colour = "black") +
+
   scale_color_manual(name="Cluster", values = inlmisc::GetColors(4)) +
 theme_bw()
 admin
@@ -312,8 +316,8 @@ savannakhet$cluster_scaled <- factor(clusters_cut)
 ggplot(savannakhet) + 
   geom_sf(aes(color = cluster_scaled)) +
   geom_sf(data = admin %>% filter(NAME_1 == "Savakhannet"), fill = "transparent", colour = "black") +
-  scale_fill_manual(name="Cluster_scaled", values = inlmisc::GetColors(6))
-
+  scale_fill_brewer(palette = "Accent") +
+  labs(title = "Cluster_scaled")
 ```
 
 
@@ -360,7 +364,8 @@ voronoi$cluster_dbscan <- factor(dbscan_clusters$cluster)
 p3 <- ggplot(voronoi) + 
   geom_sf(aes(fill = cluster_dbscan), color = "transparent") +
   geom_sf(data = admin, fill = "transparent", colour = "black") +
-  scale_fill_manual(name="Cluster_dbscan", values = inlmisc::GetColors(19))
+  scale_fill_brewer(palette = "Accent") +
+  labs(title = "Cluster_dbscan")
 p3
 
 ```
@@ -382,7 +387,8 @@ voronoi$cluster[!dense] <- NA
 p3 <- ggplot(voronoi) + 
   geom_sf(aes(fill = cluster), color = "transparent") +
   geom_sf(data = admin, fill = "transparent", colour = "black") +
-  scale_fill_manual(name="Cluster_dbscan", values = inlmisc::GetColors(5)[-1])
+  scale_fill_brewer(palette = "Accent") +
+  labs(title = "Cluster_dbscan")
 p3
 
 
