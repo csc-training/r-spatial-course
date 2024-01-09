@@ -248,9 +248,7 @@ Write out commands which
 * *filter* a subset of the buildings based on the variable you chose
 
 ```{r}
-read_sf("../Data/helsinki_buildings.gpkg") %>% 
-  dplyr::select(polyg_ala_m2) %>% 
-  dplyr::filter(polyg_ala_m2 < 100)
+
 ```
 
 2.
@@ -262,17 +260,6 @@ read_sf("../Data/helsinki_buildings.gpkg") %>%
 * *group by* apartment_building and *summarise* the mean D_ASHUOALA for the two classes
 
 ```{r}
-read_sf("../Data/helsinki_buildings.gpkg") %>% 
-  dplyr::select(I_KERROSALA, D_ASHUOALA) %>% 
-  dplyr::mutate(proportion = D_ASHUOALA / I_KERROSALA,
-         apartment_building = ifelse(proportion >= 0.5, 1, 0)) %>%
-  dplyr::group_by(apartment_building) %>% 
-  st_set_geometry(NULL) %>% 
-  summarise(mean(D_ASHUOALA))
-  
-# st_buffer(dist = 0)
-# st_set_geometry(NULL)
-# st_make_valid()
 
 ```
 
@@ -286,18 +273,7 @@ read_sf("../Data/helsinki_buildings.gpkg") %>%
 * Attach the two sets together and plot it using plot() command
 
 ```{r}
-buildings1 <- read_sf("../Data/helsinki_buildings.gpkg") %>% 
-  dplyr::mutate(ID = 1:n()) %>% 
-  dplyr::select(ID) %>% 
-  slice(1:5) # alternative here would be slice()
 
-buildings2 <- read_sf("../Data/helsinki_buildings.gpkg") %>% 
-  dplyr::mutate(ID = 1:n()) %>% 
-  dplyr::select(ID) %>% 
-  tail(5)
-
-rbind(buildings1, buildings2) %>% 
-  plot
 ```
 
 

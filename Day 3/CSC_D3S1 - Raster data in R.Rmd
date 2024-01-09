@@ -140,19 +140,7 @@ global(stack, mean)
 * plot a histogram using *hist()*
 
 ```{r}
-library(terra)
-temp1 <- rast("../Data/raster/Tmean_Monthly_2005-2014/Tmon_20050101.tif")
-temp2 <- rast("../Data/raster/Tmean_Monthly_2005-2014/Tmon_20050201.tif")
-temp3 <- rast("../Data/raster/Tmean_Monthly_2005-2014/Tmon_20050301.tif")
 
-stack <- c(temp1, temp2, temp3)
-
-plot(mean(stack))
-global(stack, mean, na.rm=TRUE)
-
-hist(stack)
-
-?`hist,SpatRaster-method`
 ```
 
 
@@ -163,22 +151,6 @@ hist(stack)
 
 
 ```{r}
-library(paletteer)
 
-plot(stack)
-plot(stack, col = paletteer_c(`"ggthemes::Red-Blue-White Diverging"`, 10, direction = -1))
-
-
-summary(stack)
-breaks <- seq(-12.5, 12.5, by = 5)
-breaks
-# colors <- paletteer::paletteer_c("scico::turku", 10)
-colors <- paletteer_c(`"ggthemes::Red-Blue-White Diverging"`, 5, direction = -1)
-plot(colors)
-
-plot(stack, breaks = breaks, col = colors)
-
-
-?`plot,SpatRaster,numeric-method`
 ```
 

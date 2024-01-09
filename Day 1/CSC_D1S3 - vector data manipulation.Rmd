@@ -313,13 +313,7 @@ plot(grid_clip, max.plot=2)
 1. Load districts (Kaupunginosajako.kml), and *st_transform* districts to *"EPSG:3067"* coordinate system. ggplot it.
 
 ```{r}
-districts <- read_sf("../Data/Kaupunginosajako.kml") %>% 
-  st_transform(3067) 
-districts
 
-library(ggplot2)
-ggplot() +
-  geom_sf(data = districts)
 ```
 
 
@@ -331,14 +325,6 @@ ggplot() +
 * Add new attribute called area by using *st_area(geometry)* (or *st_area(geom)*) inside *mutate*.
 
 ```{r}
-districts <- select(districts, nimi_fi)
-buildings <- read_sf("../Data/helsinki_buildings.gpkg") %>% 
-  select(polyg_ala_m2) %>% 
-  st_make_valid()
-
-intersection <- st_intersection(districts, buildings) %>% 
-  mutate(area = st_area(geometry))
-intersection
 
 ```
 
@@ -348,22 +334,13 @@ intersection
 * Try to find out how many buildings intersect each district. Hint: use *group_by* and *summarise*.
 
 ```{r}
-intersection %>% 
-  group_by(nimi_fi) %>% 
-  summarise(n())
 
-table(intersection$nimi_fi)
 ```
 
 
 
 4. Find out what *st_area()* and *st_length()* do. Attach their results to a polygon or line (e.g. by casting districts from polygon to linestring). You can use base R commands, *dplyr::mutate()*, or use the handy function *tibble::add_column()*.
 ```{r}
-dist_areas <- st_area(districts)
-dist_areas
-districts <- tibble::add_column(districts, area_m2 = dist_areas)
-districts
-districts$area_m2_2 <- dist_areas
-districts
+
 ```
 

@@ -194,12 +194,6 @@ terra::global(rainfall, fun = cv, na.rm=TRUE)
 * Convert the temperatures in that layer from Celcius to Kelvin.
 
 ```{r}
-files <- list.files("../Data/raster/Tmean_Monthly_2005-2014/",
-                    full.names = TRUE)
-files
-temp <- rast(files[2])
-
-plot(temp + 273.15)
 
 ```
 
@@ -209,18 +203,6 @@ plot(temp + 273.15)
 * Compute some zonal statistics for that municipality.
 
 ```{r}
-muonio <- admin[1,]
-muonio
 
-muonio_r <- rasterize(muonio, temp, field = "NATCODE")
-
-plot(muonio_r)
-
-zonal(temp, muonio_r, fun = "mean", na.rm=TRUE)
-
-# Alternative option, to use vector data with zonal function
-zonal(temp, muonio, fun = "mean", na.rm=TRUE)
-
-plot(as.polygons(muonio_r)) # raster -> polygon conversion
 ```
 

@@ -197,31 +197,12 @@ Interactive selection and editing can be done with package 'mapedit', but we wil
 * try different *linewidth*  and *color* for the district boundaries.
 
 ```{r}
-buildings <- read_sf("../Data/helsinki_buildings.gpkg")
-buildings
 
-districts <- read_sf("../Data/Kaupunginosajako.kml")
-districts
-
-ggplot() +
-  geom_sf(data = districts, fill = "transparent", linetype = 2,
-          linewidth = 0.5, color = "grey50") +
-  geom_sf(data = buildings)
 ```
 
 2. Create another map zooming into one full district. Hint: Use *filter* to pick one district, and get the bounding box using function *st_bbox()*.
 
 ```{r}
-?filter
-library(dplyr)
-bbox <- dplyr::filter(districts, nimi_fi == "MEILAHTI") %>% 
-  st_bbox()
-bbox
 
-ggplot() +
-  geom_sf(data = districts, fill = "transparent", linetype = 2,
-          linewidth = 1, color = "red") +
-  geom_sf(data = buildings) +
-  coord_sf(xlim = c(bbox[1],bbox[3]), ylim = c(bbox[2],bbox[4]))
 ```
 

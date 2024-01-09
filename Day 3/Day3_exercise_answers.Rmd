@@ -1,0 +1,217 @@
+---
+title: 'CSC Spatial Analysis with R: Day 1, exercise answers'
+author: "Marko Kallio"
+date: "10 May 2023"
+output:
+  html_document:
+    df_print: paged
+    theme: flatly
+---
+
+# Exercises
+## D3S1
+
+1.
+
+* Read in a temperature layer from "../Data/raster/Tmean_Monthly_2005-2014/Tmon_20050101.tif"
+* Read in two other layers from the same folder, but from a different month. The number in the file refers to YYYYMMDD.
+* Stack the three layers in one
+* compute mean temperature
+* plot a histogram using *hist()*
+
+```{r}
+library(terra)
+temp1 <- rast("../Data/raster/Tmean_Monthly_2005-2014/Tmon_20050101.tif")
+temp2 <- rast("../Data/raster/Tmean_Monthly_2005-2014/Tmon_20050201.tif")
+temp3 <- rast("../Data/raster/Tmean_Monthly_2005-2014/Tmon_20050301.tif")
+
+stack <- c(temp1, temp2, temp3)
+
+plot(mean(stack))
+global(stack, mean, na.rm=TRUE)
+
+hist(stack)
+
+?`hist,SpatRaster-method`
+```
+
+
+2.
+
+* plot the temperature layers
+* use a colour palette using paletteer_c()
+
+
+```{r}
+library(paletteer)
+
+plot(stack)
+plot(stack, col = paletteer_c(`"ggthemes::Red-Blue-White Diverging"`, 10, direction = -1))
+
+
+summary(stack)
+breaks <- seq(-12.5, 12.5, by = 5)
+breaks
+# colors <- paletteer::paletteer_c("scico::turku", 10)
+colors <- paletteer_c(`"ggthemes::Red-Blue-White Diverging"`, 5, direction = -1)
+plot(colors)
+
+plot(stack, breaks = breaks, col = colors)
+
+
+?`plot,SpatRaster,numeric-method`
+```
+
+
+## D3S2
+
+1.
+
+* Choose a municipality from the municipality dataset (larger municipalities are better). Crop the temperature raster stack to that municipality.
+* find the mean, min, and max temperatures for that municipality over the period 2005-2014 (the full raster stack)
+
+```{r}
+inari <- admin %>% filter(NAMEFIN == "Inari")
+plot(inari)
+temp_inari <- crop(temperature, inari)
+
+# Calculate the same thing in a few different ways.
+new_func <- function(x, na.rm=FALSE) {
+  mn <- mean(x, na.rm = na.rm)
+  min <- min(x, na.rm = na.rm)
+  max <- max(x, na.rm = na.rm)
+  return(c(mean = mn, min = min, max = max))
+}
+global(temp_inari, fun = new_func, na.rm=TRUE)
+
+# Requires newer version of Terra to work.
+# global(temp_inari, c("mean", "min", "max"), na.rm=TRUE)
+
+global(temp_inari, mean, na.rm=TRUE)
+global(temp_inari, min, na.rm=TRUE)
+global(temp_inari, max, na.rm=TRUE)
+
+mean_inari <- mean(temp_inari)
+plot(mean_inari)
+```
+
+2. 
+
+* compute a focal function over the temperature_mean raster with the window of your choosing (square, rectangular, or some other matrix. Look at the help for *terra::focal()*. Try e.g. the Laplacian or Sobel filters?)
+* Crop both rasters to the municipality you chose: the temperature_mean raster and the focal raster you've just created.
+* Plot the rasters - do you see large differences? Compute the difference between the rasters, and plot that too.
+
+```{r}
+focal_mean <- focal(mean_inari, w = 3, fun = mean)
+
+inari_stack <- c(mean_inari, focal_mean)
+plot(inari_stack)
+```
+
+
+3. 
+
+* Reclassify both rasters using just two classes: *hot* and *cold*. Where are the hot and cold parts of the municipality?
+
+```{r}
+mean_temp <- global(mean_inari, mean, na.rm=TRUE)
+mean_temp
+
+reclass_mat <- matrix(c(-Inf, mean_temp$mean, 0,
+                        mean_temp$mean, Inf, 1),
+                         ncol = 3,
+                         byrow = TRUE)
+reclass_mat
+hotcold_inari <- terra::classify(mean_inari, rcl = reclass_mat)
+plot(hotcold_inari)
+
+```
+
+## D3S3
+
+1.
+
+* Read in one temperature layer from "../Data/raster/Tmean_monthly_2005-2014/".
+* Convert the temperatures in that layer from Celcius to Kelvin.
+
+```{r}
+files <- list.files("../Data/raster/Tmean_Monthly_2005-2014/",
+                    full.names = TRUE)
+files
+temp <- rast(files[2])
+
+plot(temp + 273.15)
+
+```
+
+2. 
+
+* Create a zone (rasterize)for a munucipality of your choosing (bigger ones better - use only that municipality polygon when rasterizing)
+* Compute some zonal statistics for that municipality.
+
+```{r}
+muonio <- admin[1,]
+muonio
+
+muonio_r <- rasterize(muonio, temp, field = "NATCODE")
+
+plot(muonio_r)
+
+zonal(temp, muonio_r, fun = "mean", na.rm=TRUE)
+
+# Alternative option, to use vector data with zonal function
+zonal(temp, muonio, fun = "mean", na.rm=TRUE)
+
+plot(as.polygons(muonio_r)) # raster -> polygon conversion
+```
+
+
+
+## D3S4
+
+1.
+
+* add a new raster layer *lakes* to prediction stack
+* train a linear regression model with the extra explanatory variable
+* **predict**
+* plot
+
+```{r}
+prediction_stack <- c(prediction_stack, lakes)
+plot(prediction_stack)
+
+lakes_data <- terra::as.data.frame(prediction_stack, xy = TRUE)
+
+lakes_model_fit <- lm(Tmon_20110701 ~ x + y + Elevation_10km + Lake_10km, data = lakes_data[trainset, ])
+
+summary(model_fit)
+summary(lakes_model_fit)
+lakes_prediction_raster <- terra::predict(prediction_stack, lakes_model_fit)
+
+plot(c(no_lakes = prediction_raster, lakes = lakes_prediction_raster, july2011))
+
+```
+
+
+2. 
+
+* Extract values from prediction raster, and july2011
+* compute correlation and mean error (*pred - obs*)
+* plot a scatterplot with july2011 values on x-axis, and error on y-axis.
+
+```{r}
+
+predict_data <- as.data.frame(lakes_prediction_raster, xy = TRUE)
+observed_data <- as.data.frame(july2011, xy = TRUE)
+
+task2_data <- dplyr::left_join(predict_data, observed_data, by = c("x", "y")) 
+task2_data
+
+cor(task2_data$lyr1, task2_data$Tmon_20110701, use = "complete.obs")
+error <- task2_data$lyr1 - task2_data$Tmon_20110701
+
+mean(error, na.rm=TRUE)
+
+plot(task2_data$Tmon_20110701, error)
+```
+

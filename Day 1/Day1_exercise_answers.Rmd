@@ -1,0 +1,233 @@
+---
+title: 'CSC Spatial Analysis with R: Day 1, exercise answers'
+author: "Marko Kallio"
+date: "10 May 2023"
+output:
+  html_document:
+    df_print: paged
+    theme: flatly
+---
+
+
+# Exercises
+## D1S1
+
+Write out commands which
+
+1.
+
+* *read* in helsinki_buildings.gpkg from the data folder
+* *select* a variable
+* *filter* a subset of the buildings based on the variable you chose
+
+```{r}
+read_sf("../Data/helsinki_buildings.gpkg") %>% 
+  dplyr::select(polyg_ala_m2) %>% 
+  dplyr::filter(polyg_ala_m2 < 100)
+```
+
+2.
+
+* *read* in helsinki_buildings.gpkg from the data folder
+* *select* I_KERROSALA and D_ASHUOALA (total building sq m2, and sq m2 used for apartment space)
+* *mutate* a new variable **proportion**, which is the proportion of D_ASHUOALA from the total I_KERROSALA.
+* *mutate* a new variable *apartment_building* which has value 1 if **proportion** is higher than 0.5, and 0 if below. Hint: you can use **ifelse(condition, true, false)** inside *mutate*
+* *group by* apartment_building and *summarise* the mean D_ASHUOALA for the two classes
+
+```{r}
+read_sf("../Data/helsinki_buildings.gpkg") %>% 
+  dplyr::select(I_KERROSALA, D_ASHUOALA) %>% 
+  dplyr::mutate(proportion = D_ASHUOALA / I_KERROSALA,
+         apartment_building = ifelse(proportion >= 0.5, 1, 0)) %>%
+  dplyr::group_by(apartment_building) %>% 
+  st_set_geometry(NULL) %>% 
+  summarise(mean(D_ASHUOALA))
+  
+# st_buffer(dist = 0)
+# st_set_geometry(NULL)
+# st_make_valid()
+
+```
+
+3.
+
+* *read* in helsinki_buildings.gpkg from the data folder
+* create a new attribute called *"ID"*, and give it values *1:nrow(buildings)*
+* *select* ID from the buildings
+* *filter* five (any five) buildings. You can use dplyr::filter(), giving it an argument of row numbers, e.g. 1:5
+* create another set with another five buildings
+* Attach the two sets together and plot it using plot() command
+
+```{r}
+buildings1 <- read_sf("../Data/helsinki_buildings.gpkg") %>% 
+  dplyr::mutate(ID = 1:n()) %>% 
+  dplyr::select(ID) %>% 
+  slice(1:5) # alternative here would be slice()
+
+buildings2 <- read_sf("../Data/helsinki_buildings.gpkg") %>% 
+  dplyr::mutate(ID = 1:n()) %>% 
+  dplyr::select(ID) %>% 
+  tail(5)
+
+rbind(buildings1, buildings2) %>% 
+  plot
+```
+
+## D1S2
+
+1. 
+
+* *read* in helsinki_buildings.gpkg and Kaupunginosajako.kml from the data folder
+* Create a ggplot which shows the districts and buildings.
+* visualize districts as dashed line (*linetype = 2*) in the geom_sf() function call.
+* give the districs a white or transparent *fill* colour.
+* try different *linewidth*  and *color* for the district boundaries.
+
+```{r}
+buildings <- read_sf("../Data/helsinki_buildings.gpkg")
+buildings
+
+districts <- read_sf("../Data/Kaupunginosajako.kml")
+districts
+
+ggplot() +
+  geom_sf(data = districts, fill = "transparent", linetype = 2,
+          linewidth = 0.5, color = "grey50") +
+  geom_sf(data = buildings)
+```
+
+2. Create another map zooming into one full district. Hint: Use *filter* to pick one district, and get the bounding box using function *st_bbox()*.
+
+```{r}
+?filter
+library(dplyr)
+bbox <- dplyr::filter(districts, nimi_fi == "MEILAHTI") %>% 
+  st_bbox()
+bbox
+
+ggplot() +
+  geom_sf(data = districts, fill = "transparent", linetype = 2,
+          linewidth = 1, color = "red") +
+  geom_sf(data = buildings) +
+  coord_sf(xlim = c(bbox[1],bbox[3]), ylim = c(bbox[2],bbox[4]))
+```
+
+## D1S3
+
+1. Load districts (Kaupunginosajako.kml), and *st_transform* districts to *"EPSG:3067"* coordinate system. ggplot it.
+
+```{r}
+districts <- read_sf("../Data/Kaupunginosajako.kml") %>% 
+  st_transform(3067) 
+districts
+
+library(ggplot2)
+ggplot() +
+  geom_sf(data = districts)
+```
+
+
+2. 
+
+* *Select* nimi_fi attribute from the districts 
+* load the buildings data and select polyg_ala_m2 
+* Take an intersection between districts and buildings. 
+* Add new attribute called area by using *st_area(geometry)* (or *st_area(geom)*) inside *mutate*.
+
+```{r}
+districts <- select(districts, nimi_fi)
+buildings <- read_sf("../Data/helsinki_buildings.gpkg") %>% 
+  select(polyg_ala_m2) %>% 
+  st_make_valid()
+
+intersection <- st_intersection(districts, buildings) %>% 
+  mutate(area = st_area(geometry))
+intersection
+
+```
+
+3.
+
+* Continuing using the intersection created in task 2.
+* Try to find out how many buildings intersect each district. Hint: use *group_by* and *summarise*.
+
+```{r}
+intersection %>% 
+  group_by(nimi_fi) %>% 
+  summarise(n())
+
+table(intersection$nimi_fi)
+```
+
+
+
+4. Find out what *st_area()* and *st_length()* do. Attach their results to a polygon or line (e.g. by casting districts from polygon to linestring). You can use base R commands, *dplyr::mutate()*, or use the handy function *tibble::add_column()*.
+```{r}
+dist_areas <- st_area(districts)
+dist_areas
+districts <- tibble::add_column(districts, area_m2 = dist_areas)
+districts
+districts$area_m2_2 <- dist_areas
+districts
+```
+
+## D1S4
+
+1. Write an R script which
+
+* loads the building dataset
+* transforms CRS to EPSG:3067
+* selects one (any) building
+* takes a buffer of 1 km
+* counts how many buildings fall within the buffer
+* plots the buffer and the buildings
+
+```{r}
+library(sf)
+
+# Some buildings seem to have invalid (self-intersecting) geometry, so therefore here an extra step here for fixing that.
+buildings <- read_sf("../Data/helsinki_buildings.gpkg") %>% 
+  st_transform(3067) %>% 
+  st_make_valid()
+  
+# Take random 
+one_building <- buildings[450,]
+
+one_building_1km_buffer <- one_building %>%
+    sf::st_buffer(dist = 1000)
+
+buildings_selected <- sf::st_intersection(one_building_1km_buffer, buildings)
+nrow(buildings_selected)
+
+plot(one_building_1km_buffer[,"valmvuosi"], reset=FALSE)
+plot(builidings_selected[,"valmvuosi"], col='white', add=TRUE)
+
+
+```
+
+2. Do the same as above, but take a random sample of 10 buildings.
+
+* use ggplot and use colour aestethic to visualize the number of villages inside the buffers.
+
+```{r}
+library(ggplot2)
+
+ten_buildings <- buildings %>% #replace buildings here with the name of your variable from task 1.
+  sample_n(10) # take random sample
+
+ten_buildings_1km_buffer <- ten_buildings %>%
+    sf::st_buffer(dist = 1000)
+
+ten_buildings_selected <- sf::st_intersection(ten_buildings_1km_buffer, buildings)
+
+builiding_counts <- sf::st_intersects(ten_buildings_1km_buffer, buildings, sparse=FALSE)
+builiding_counts <- apply(builiding_counts, MARGIN = 1, sum)
+ten_buildings_1km_buffer$builiding_counts <- builiding_counts
+
+ten_buildings_1km_buffer
+
+ggplot(ten_buildings_1km_buffer) + 
+  geom_sf(aes(fill = builiding_counts)) +
+  geom_sf(data = ten_buildings_selected) 
+
+```

@@ -25,10 +25,28 @@ Last instructor led course was on 10-12-5.2023: https://ssl.eventilla.com/event/
 ### Self-study recommendations
 * Vector data exercises (Days 1  and 2) should be done in the given order, with possibility to skip to visualization before finishing some of the sessions before it.
 * Raster data exercises (Day 3) can be done as own module, without doing the vector data exercises.
-* Use [CSC Notebooks](https://notebooks.rahtiapp.fi/) as exercise environment,
-  * Start `Spatial data analysis with R` public application, which has a copy of this repository.
-  * CSC Notebooks has rather limited memory, so after each session restart R from Session menu.
-  * The public notebook does not save any files at session end, so export any files you want before finishing.
+* Use RStudio to open the material, each session has its own R notebook.
+* Each session ends with exercises, sample solutions can be found from separate file for each day.
+* To open first session open in RStudio the folder `r-spatial-course` and then to specific day.
+* The "Visual" mode of RStudio notebooks seems to sometimes have problems, use then the "Source" mode.
+* There are two main options for self-study, use CSC Noppe service or with local RStudio.
+
+#### Using CSC Noppe
+
+CSC Noppe has self-study RStudio with ready package installations and course materials. It is available for Finnish academic users with HAKA or VIRTU account.
+
+* Open [CSC Noppe](https://notebooks.rahtiapp.fi/) as exercise environment.
+* Start `Spatial data analysis with R` public application, which has a copy of this repository.
+* CSC Noppe has rather limited memory, so after each session restart R from Session menu.
+* The public notebook does not save any files at session end, so export any files you want before finishing.
+
+#### Using local RStudio
+
+* Install RStudio
+* Install [required R packages](install_packages.sh)
+* Get materials. Clone [this Github repository](https://github.com/csc-training/r-spatial-course). In RStudio: `File -> New project -> Version control -> Git`
+  * Repository URL: `https://github.com/csc-training/r-spatial-course.git`
+  * Project directory name: `r-spatial-course`
 
 ## Prerequisites
 * Basics of geoinformatics and geostatistics

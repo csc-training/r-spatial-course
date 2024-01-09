@@ -1,0 +1,214 @@
+---
+title: 'CSC Spatial Analysis with R: Day 1, exercise answers'
+author: "Marko Kallio"
+date: "10 May 2023"
+output:
+  html_document:
+    df_print: paged
+    theme: flatly
+---
+
+# Exercises
+## D2S1
+
+1. 
+
+* read villages.gpkg and transform it into *EPSG:32648*
+* *filter* province Savannakhet in villages dataset. 
+* compute a *1/st_distance* matrix for the subset of villages, and create a *listw* object from it
+* compute Moran's I for an attribute of your own choice
+* draw a ggplot
+
+```{r}
+villages <- read_sf("../Data/villages.gpkg") %>% 
+  st_transform(32648) %>% 
+  filter(prov_name == "Savannakhet")
+
+dmat <- 1/sf::st_distance(villages)^2 %>% 
+  unclass() #unclassing because st_distance returns a 'unit' class object. Operations with 'unit' class require both operands to be of class 'unit'.
+
+diag(dmat) <- 0 # set matrix diagonal as 0
+dmat_listw <- spdep::mat2listw(dmat, style = "W")
+
+( moran <- spdep::moran.test(villages$PovertyRate, dmat_listw) )
+
+ggplot() +
+  geom_sf(data = villages, aes(color = PovertyRate))
+
+```
+
+
+2.
+
+* Take subset of villages from exercise 1
+* Compute *listw* object from *k*-nearest neighbours (choose *k* yourself)
+* compute local moran using the subset and knn-listw for Savannakhet.
+
+```{r}
+knn_listw <- sf::st_coordinates(villages) %>% 
+    spdep::knearneigh(k=10) %>% 
+    spdep::knn2nb() %>% # create neighbour list
+    spdep::nb2listw(style = "W") # create weights list from neighbour object
+
+local_moran <- spdep::localmoran(villages$PovertyRate, 
+                                 knn_listw, 
+                                 alternative = "two.sided") %>% 
+    dplyr::as_tibble()
+
+# Local Moran's Index
+local_moran
+
+# plot
+villages <- villages %>% 
+  dplyr::mutate(Morans_I = as.vector(local_moran$Ii), 
+                Morans_p = as.vector(local_moran$`Pr(z != E(Ii))`)) # # p-value of local moran statistic. Notice that the column name has spaces, which means we need to refer to it with backticks. In finnish language keyboard, press shift + the button to the left of backspace.
+
+p1 <- ggplot() + 
+  geom_sf(data = villages, aes(color = Morans_I)) +
+  scale_fill_gradient2(low="red", mid = 'white', high = 'blue') +
+  labs(title = "Moran's I")
+
+p2 <- ggplot() + 
+  geom_sf(data = villages, aes(color = Morans_p)) +
+  scale_fill_gradient(low="red",high = 'blue') +
+  labs(title = "Moran's I, p-value")
+
+library(patchwork)
+p1 + p2
+```
+
+
+3. 
+
+* compute a correlogram for Savannakhet for a variable of your choice.
+
+```{r}
+
+coordinates <- sf::st_coordinates(villages)
+coordinates
+
+corgram <- ncf::correlog(coordinates[,1], coordinates[,2], # point coordinates
+                         villages$PovertyRate, # value for estimation
+                    increment=20000, # distance lags, here 100 km
+                    resamp=10, # permutations for significance testing
+                    na.rm=TRUE)
+plot(corgram) # closed dots have p < 0.05
+
+( data <- data.frame(distance = corgram$mean.of.class,
+                       moran = corgram$correlation,
+                       p = corgram$p) )
+```
+
+
+## D2S2
+
+
+1. *filter* villages with prov_name **Savannakhet**
+2. create **cluster_data** object with *select* 3 variables
+3. *st_set_geometry* to NULL
+4. Apply k-means clustering with 4 clusters
+5. Attach the clusters to Savannakhet villages (or voronoi, if you create them)
+6. ggplot the clusters. Optionally a boxplot too.
+
+```{r}
+savannakhet <- read_sf("../Data/villages.gpkg") %>% 
+  filter(prov_name == "Savannakhet")
+
+cluster_data <- savannakhet %>% 
+  select(HumanFootprint, SoilDegradation, IncomeDependency) %>% 
+  st_set_geometry(NULL)
+
+clusters <- kmeans(cluster_data, 4)
+
+savannakhet$cluster <- factor(clusters$cluster)
+
+ggplot(savannakhet) + 
+  geom_sf(aes(color = cluster)) +
+  geom_sf(data = admin %>% filter(NAME_1 == "Savakhannet"), fill = "transparent", colour = "black") +
+  scale_fill_brewer(palette = "Accent") +
+  labs(title = "Cluster") +
+theme_bw()
+admin
+```
+
+
+7. Do the same as above, but using hierarchical clustering and compute the distance matrix with the *scaled_dist()* function we defined earlier.
+
+```{r}
+dmat <- scaled_dist(savannakhet, scale_range = c(1,3))
+
+
+# ------------------------------------------------------------------------------
+# hierarchical clustering with scaled distance metric
+clusters <- hclust(dmat, method = "complete")
+plot(clusters)
+clusters_cut <- cutree(clusters, k=4)
+
+# number of points in each cluster
+print(table(clusters_cut))
+
+
+savannakhet$cluster_scaled <- factor(clusters_cut)
+
+ggplot(savannakhet) + 
+  geom_sf(aes(color = cluster_scaled)) +
+  geom_sf(data = admin %>% filter(NAME_1 == "Savakhannet"), fill = "transparent", colour = "black") +
+  scale_fill_brewer(palette = "Accent") +
+  labs(title = "Cluster_scaled")
+```
+
+
+## D2S3
+
+1. 
+
+* read in villages, and transform it to EPSG:32648
+* take a sample of 500 random villages
+* cast it as "Spatial"
+* calculate a distance matrix
+* optimise bandwidth for GWR for model **PovertyRate ~ 4 variables of your choosing**
+* run GWR with the given model
+* plot the residuals (can be obtained from *vil_gwr$SDF$residual*)
+
+```{r}
+villages <- read_sf("../Data/villages.gpkg") %>% 
+  st_transform(32648) %>% 
+  sample_n(500) 
+vil_sp <- as(villages, "Spatial")
+
+dmat <- gw.dist(dp.locat=coordinates(vil_sp))
+names(villages)
+bw <- bw.gwr(PovertyRate ~  wIrrigatedArea + SoilDegradation + IncomeDependency + DrinkWaterSource,   
+             vil_sp, kernel = "gaussian")
+
+vil_gwr <- gwr.basic(PovertyRate ~ wIrrigatedArea + SoilDegradation + IncomeDependency + DrinkWaterSource,   
+                     vil_sp, kernel = "gaussian", bw = bw, dMat = dmat)
+vil_gwr
+
+gwr_sf <- vil_gwr$SDF %>% st_as_sf()
+
+plot(gwr_sf[,"residual"])
+```
+
+
+2.
+
+* Estimate the same model using a SAR model
+
+```{r}
+# create 'listw' (weight list) object from point distance matrix  
+dmat <- 1/sf::st_distance(villages)^2 %>% 
+  unclass() 
+diag(dmat) <- 0 # set matrix diagonal as 0
+dmat_listw <- spdep::mat2listw(dmat, style = "W")
+
+vil_data <- villages %>% sf::st_set_geometry(NULL)
+
+sar <- spatialreg::lagsarlm(PovertyRate ~ wIrrigatedArea + SoilDegradation + IncomeDependency + DrinkWaterSource,    
+         data=vil_data, 
+         dmat_listw)
+summary(sar)
+
+spdep::moran.test(gwr_sf$residual, dmat_listw)
+
+```

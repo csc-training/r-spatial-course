@@ -265,28 +265,7 @@ terra::writeRaster(temperature_classified,
 * find the mean, min, and max temperatures for that municipality over the period 2005-2014 (the full raster stack)
 
 ```{r}
-inari <- admin %>% filter(NAMEFIN == "Inari")
-plot(inari)
-temp_inari <- crop(temperature, inari)
 
-# Calculate the same thing in a few different ways.
-new_func <- function(x, na.rm=FALSE) {
-  mn <- mean(x, na.rm = na.rm)
-  min <- min(x, na.rm = na.rm)
-  max <- max(x, na.rm = na.rm)
-  return(c(mean = mn, min = min, max = max))
-}
-global(temp_inari, fun = new_func, na.rm=TRUE)
-
-# Requires newer version of Terra to work.
-# global(temp_inari, c("mean", "min", "max"), na.rm=TRUE)
-
-global(temp_inari, mean, na.rm=TRUE)
-global(temp_inari, min, na.rm=TRUE)
-global(temp_inari, max, na.rm=TRUE)
-
-mean_inari <- mean(temp_inari)
-plot(mean_inari)
 ```
 
 2. 
@@ -308,16 +287,6 @@ plot(inari_stack)
 * Reclassify both rasters using just two classes: *hot* and *cold*. Where are the hot and cold parts of the municipality?
 
 ```{r}
-mean_temp <- global(mean_inari, mean, na.rm=TRUE)
-mean_temp
-
-reclass_mat <- matrix(c(-Inf, mean_temp$mean, 0,
-                        mean_temp$mean, Inf, 1),
-                         ncol = 3,
-                         byrow = TRUE)
-reclass_mat
-hotcold_inari <- terra::classify(mean_inari, rcl = reclass_mat)
-plot(hotcold_inari)
 
 ```
 

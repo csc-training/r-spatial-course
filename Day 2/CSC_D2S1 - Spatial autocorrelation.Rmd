@@ -183,20 +183,6 @@ plot(corgram) # closed dots have p < 0.05
 * draw a ggplot
 
 ```{r}
-villages <- read_sf("../Data/villages.gpkg") %>% 
-  st_transform(32648) %>% 
-  filter(prov_name == "Savannakhet")
-
-dmat <- 1/sf::st_distance(villages)^2 %>% 
-  unclass() #unclassing because st_distance returns a 'unit' class object. Operations with 'unit' class require both operands to be of class 'unit'.
-
-diag(dmat) <- 0 # set matrix diagonal as 0
-dmat_listw <- spdep::mat2listw(dmat, style = "W")
-
-( moran <- spdep::moran.test(villages$PovertyRate, dmat_listw) )
-
-ggplot() +
-  geom_sf(data = villages, aes(color = PovertyRate))
 
 ```
 
@@ -208,36 +194,7 @@ ggplot() +
 * compute local moran using the subset and knn-listw for Savannakhet.
 
 ```{r}
-knn_listw <- sf::st_coordinates(villages) %>% 
-    spdep::knearneigh(k=10) %>% 
-    spdep::knn2nb() %>% # create neighbour list
-    spdep::nb2listw(style = "W") # create weights list from neighbour object
 
-local_moran <- spdep::localmoran(villages$PovertyRate, 
-                                 knn_listw, 
-                                 alternative = "two.sided") %>% 
-    dplyr::as_tibble()
-
-# Local Moran's Index
-local_moran
-
-# plot
-villages <- villages %>% 
-  dplyr::mutate(Morans_I = as.vector(local_moran$Ii), 
-                Morans_p = as.vector(local_moran$`Pr(z != E(Ii))`)) # # p-value of local moran statistic. Notice that the column name has spaces, which means we need to refer to it with backticks. In finnish language keyboard, press shift + the button to the left of backspace.
-
-p1 <- ggplot() + 
-  geom_sf(data = villages, aes(color = Morans_I)) +
-  scale_fill_gradient2(low="red", mid = 'white', high = 'blue') +
-  labs(title = "Moran's I")
-
-p2 <- ggplot() + 
-  geom_sf(data = villages, aes(color = Morans_p)) +
-  scale_fill_gradient(low="red",high = 'blue') +
-  labs(title = "Moran's I, p-value")
-
-library(patchwork)
-p1 + p2
 ```
 
 
@@ -247,24 +204,7 @@ p1 + p2
 
 ```{r}
 
-coordinates <- sf::st_coordinates(villages)
-coordinates
-
-corgram <- ncf::correlog(coordinates[,1], coordinates[,2], # point coordinates
-                         villages$PovertyRate, # value for estimation
-                    increment=20000, # distance lags, here 100 km
-                    resamp=10, # permutations for significance testing
-                    na.rm=TRUE)
-plot(corgram) # closed dots have p < 0.05
-
-( data <- data.frame(distance = corgram$mean.of.class,
-                       moran = corgram$correlation,
-                       p = corgram$p) )
 ```
-
-
-
-
 
 
 

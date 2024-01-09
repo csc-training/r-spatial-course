@@ -284,18 +284,6 @@ plot(c(prediction_interpolated, july2011))
 * plot
 
 ```{r}
-prediction_stack <- c(prediction_stack, lakes)
-plot(prediction_stack)
-
-lakes_data <- terra::as.data.frame(prediction_stack, xy = TRUE)
-
-lakes_model_fit <- lm(Tmon_20110701 ~ x + y + Elevation_10km + Lake_10km, data = lakes_data[trainset, ])
-
-summary(model_fit)
-summary(lakes_model_fit)
-lakes_prediction_raster <- terra::predict(prediction_stack, lakes_model_fit)
-
-plot(c(no_lakes = prediction_raster, lakes = lakes_prediction_raster, july2011))
 
 ```
 
@@ -308,17 +296,5 @@ plot(c(no_lakes = prediction_raster, lakes = lakes_prediction_raster, july2011))
 
 ```{r}
 
-predict_data <- as.data.frame(lakes_prediction_raster, xy = TRUE)
-observed_data <- as.data.frame(july2011, xy = TRUE)
-
-task2_data <- dplyr::left_join(predict_data, observed_data, by = c("x", "y")) 
-task2_data
-
-cor(task2_data$lyr1, task2_data$Tmon_20110701, use = "complete.obs")
-error <- task2_data$lyr1 - task2_data$Tmon_20110701
-
-mean(error, na.rm=TRUE)
-
-plot(task2_data$Tmon_20110701, error)
 ```
 

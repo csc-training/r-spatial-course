@@ -140,7 +140,7 @@ class(vil_gwr)
 
 
 
-## Exercise
+## Exercises
 
 1. 
 
@@ -153,23 +153,7 @@ class(vil_gwr)
 * plot the residuals (can be obtained from *vil_gwr$SDF$residual*)
 
 ```{r}
-villages <- read_sf("../Data/villages.gpkg") %>% 
-  st_transform(32648) %>% 
-  sample_n(500) 
-vil_sp <- as(villages, "Spatial")
 
-dmat <- gw.dist(dp.locat=coordinates(vil_sp))
-names(villages)
-bw <- bw.gwr(PovertyRate ~  wIrrigatedArea + SoilDegradation + IncomeDependency + DrinkWaterSource,   
-             vil_sp, kernel = "gaussian")
-
-vil_gwr <- gwr.basic(PovertyRate ~ wIrrigatedArea + SoilDegradation + IncomeDependency + DrinkWaterSource,   
-                     vil_sp, kernel = "gaussian", bw = bw, dMat = dmat)
-vil_gwr
-
-gwr_sf <- vil_gwr$SDF %>% st_as_sf()
-
-plot(gwr_sf[,"residual"])
 ```
 
 
@@ -178,20 +162,6 @@ plot(gwr_sf[,"residual"])
 * Estimate the same model using a SAR model
 
 ```{r}
-# create 'listw' (weight list) object from point distance matrix  
-dmat <- 1/sf::st_distance(villages)^2 %>% 
-  unclass() 
-diag(dmat) <- 0 # set matrix diagonal as 0
-dmat_listw <- spdep::mat2listw(dmat, style = "W")
-
-vil_data <- villages %>% sf::st_set_geometry(NULL)
-
-sar <- spatialreg::lagsarlm(PovertyRate ~ wIrrigatedArea + SoilDegradation + IncomeDependency + DrinkWaterSource,    
-         data=vil_data, 
-         dmat_listw)
-summary(sar)
-
-spdep::moran.test(gwr_sf$residual, dmat_listw)
 
 ```
 
