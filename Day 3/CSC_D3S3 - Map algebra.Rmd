@@ -218,7 +218,8 @@ plot(muonio_r)
 
 zonal(temp, muonio_r, fun = "mean", na.rm=TRUE)
 
-zonal(temp, vect(muonio), fun = "mean", na.rm=TRUE)
+# Alternative option, to use vector data with zonal function
+zonal(temp, muonio, fun = "mean", na.rm=TRUE)
 
 plot(as.polygons(muonio_r)) # raster -> polygon conversion
 ```
