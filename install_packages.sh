@@ -18,7 +18,6 @@ install2.r --error --skipinstalled \
     exactextractr \
     fasterize \
     ncf \
-    inlmisc \
     elsa \
     tmap
     
