@@ -20,6 +20,10 @@ output:
 * draw a ggplot
 
 ```{r}
+library(sf)
+library(dplyr)
+library(ggplot2)
+
 villages <- read_sf("../Data/villages.gpkg") %>% 
   st_transform(32648) %>% 
   filter(prov_name == "Savannakhet")

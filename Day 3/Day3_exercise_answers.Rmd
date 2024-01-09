@@ -21,6 +21,8 @@ output:
 
 ```{r}
 library(terra)
+library(dplyr)
+
 temp1 <- rast("../Data/raster/Tmean_Monthly_2005-2014/Tmon_20050101.tif")
 temp2 <- rast("../Data/raster/Tmean_Monthly_2005-2014/Tmon_20050201.tif")
 temp3 <- rast("../Data/raster/Tmean_Monthly_2005-2014/Tmon_20050301.tif")

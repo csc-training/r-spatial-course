@@ -21,6 +21,10 @@ Write out commands which
 * *filter* a subset of the buildings based on the variable you chose
 
 ```{r}
+library(sf)
+library(dplyr)
+library(ggplot2)
+
 read_sf("../Data/helsinki_buildings.gpkg") %>% 
   dplyr::select(polyg_ala_m2) %>% 
   dplyr::filter(polyg_ala_m2 < 100)
@@ -100,7 +104,6 @@ ggplot() +
 
 ```{r}
 ?filter
-library(dplyr)
 bbox <- dplyr::filter(districts, nimi_fi == "MEILAHTI") %>% 
   st_bbox()
 bbox
@@ -121,7 +124,6 @@ districts <- read_sf("../Data/Kaupunginosajako.kml") %>%
   st_transform(3067) 
 districts
 
-library(ggplot2)
 ggplot() +
   geom_sf(data = districts)
 ```
@@ -183,8 +185,6 @@ districts
 * plots the buffer and the buildings
 
 ```{r}
-library(sf)
-
 # Some buildings seem to have invalid (self-intersecting) geometry, so therefore here an extra step here for fixing that.
 buildings <- read_sf("../Data/helsinki_buildings.gpkg") %>% 
   st_transform(3067) %>% 
@@ -200,7 +200,7 @@ buildings_selected <- sf::st_intersection(one_building_1km_buffer, buildings)
 nrow(buildings_selected)
 
 plot(one_building_1km_buffer[,"valmvuosi"], reset=FALSE)
-plot(builidings_selected[,"valmvuosi"], col='white', add=TRUE)
+plot(buildings_selected[,"valmvuosi"], col='white', add=TRUE)
 
 
 ```
@@ -210,8 +210,6 @@ plot(builidings_selected[,"valmvuosi"], col='white', add=TRUE)
 * use ggplot and use colour aestethic to visualize the number of villages inside the buffers.
 
 ```{r}
-library(ggplot2)
-
 ten_buildings <- buildings %>% #replace buildings here with the name of your variable from task 1.
   sample_n(10) # take random sample
 
