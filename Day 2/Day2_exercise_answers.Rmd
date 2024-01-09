@@ -114,6 +114,8 @@ plot(corgram) # closed dots have p < 0.05
 savannakhet <- read_sf("../Data/villages.gpkg") %>% 
   filter(prov_name == "Savannakhet")
 
+admin <- sf::read_sf("../Data/LAO_adm1.shp") 
+
 cluster_data <- savannakhet %>% 
   select(HumanFootprint, SoilDegradation, IncomeDependency) %>% 
   st_set_geometry(NULL)
@@ -133,6 +135,36 @@ admin
 
 
 7. Do the same as above, but using hierarchical clustering and compute the distance matrix with the *scaled_dist()* function we defined earlier.
+
+```{r}
+# define a new distance function
+# inputs: 
+#   sf - an sf point object
+#   scale_range - range to scale the geographical distances to
+scaled_dist <- function(sf, scale_range = NULL) {
+  
+  n <- nrow(sf)
+  distance <- sf::st_distance(sf) # get geographical distance between data points
+  diag(distance) <- NA # matrix diagonal to NA
+  distance <- units::drop_units(distance) 
+  
+  # scale the distances to the range given by user
+  if(!is.null(scale_range)) {
+    distance <- distance/max(distance, na.rm=TRUE)
+    distance <- distance * (scale_range[2]-scale_range[1]) + scale_range[1]
+  }
+  
+  # multiply attribute distances by the scaled geographical distance
+  sf <- sf::st_set_geometry(sf, NULL)
+  dist <- as.matrix(dist(sf[,-1]))
+  dmat <- dist*distance
+  
+  # convert to dist object as required by hclust-function
+  dmat <- as.dist(dmat)
+  return(dmat)
+}
+```
+
 
 ```{r}
 dmat <- scaled_dist(savannakhet, scale_range = c(1,3))
@@ -171,6 +203,8 @@ ggplot(savannakhet) +
 * plot the residuals (can be obtained from *vil_gwr$SDF$residual*)
 
 ```{r}
+library(GWmodel, quietly=TRUE)
+
 villages <- read_sf("../Data/villages.gpkg") %>% 
   st_transform(32648) %>% 
   sample_n(500) 

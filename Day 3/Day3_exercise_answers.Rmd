@@ -71,6 +71,14 @@ plot(stack, breaks = breaks, col = colors)
 * find the mean, min, and max temperatures for that municipality over the period 2005-2014 (the full raster stack)
 
 ```{r}
+admin <- sf::read_sf("../Data/raster/SuomenKuntajako_2021_100k.shp")
+
+files <- list.files("../Data/raster/Tmean_Monthly_2005-2014/", 
+                    full.names = TRUE)
+
+temperature <- lapply(files, terra::rast) #read in all files, output is a list
+temperature <- do.call("c", temperature) # stack all rasters together
+
 inari <- admin %>% filter(NAMEFIN == "Inari")
 plot(inari)
 temp_inari <- crop(temperature, inari)
@@ -160,7 +168,7 @@ plot(muonio_r)
 zonal(temp, muonio_r, fun = "mean", na.rm=TRUE)
 
 # Alternative option, to use vector data with zonal function
-zonal(temp, muonio, fun = "mean", na.rm=TRUE)
+zonal(temp, vect(muonio), fun = "mean", na.rm=TRUE)
 
 plot(as.polygons(muonio_r)) # raster -> polygon conversion
 ```
@@ -177,6 +185,35 @@ plot(as.polygons(muonio_r)) # raster -> polygon conversion
 * plot
 
 ```{r}
+# Variables needed from earlier code:
+
+elevation <- terra::rast("../Data/raster/Elevation_10km.tif") # Digital elevation model
+lakes <- terra::rast("../Data/raster/Lake_10km.tif") # Lake cover
+
+july2011 <- temperature[["Tmon_20110701"]]
+july2011 <- terra::project(july2011, elevation, method = "near")
+
+stack <- c(july2011, elevation)
+
+data <- terra::as.data.frame(stack, xy = TRUE)
+
+xy_raster <- data %>% 
+  dplyr::mutate(x_coord = x, y_coord = y) %>% 
+  terra::vect(geom = c("x_coord", "y_coord")) %>%
+  terra::rasterize(july2011, field = c("x", "y"))
+
+prediction_stack <- c(xy_raster, stack)
+
+trainset <- sample(1:nrow(data), floor(nrow(data)*0.50)) %>% 
+    sort()
+
+model_fit <- lm(Tmon_20110701 ~ x + y + Elevation_10km, data = data[trainset, ])
+prediction_raster <- terra::predict(prediction_stack, model_fit)
+```
+
+```{r}
+# Exercise part:
+
 prediction_stack <- c(prediction_stack, lakes)
 plot(prediction_stack)
 
@@ -189,6 +226,7 @@ summary(lakes_model_fit)
 lakes_prediction_raster <- terra::predict(prediction_stack, lakes_model_fit)
 
 plot(c(no_lakes = prediction_raster, lakes = lakes_prediction_raster, july2011))
+
 
 ```
 
