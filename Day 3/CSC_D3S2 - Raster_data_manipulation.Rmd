@@ -275,10 +275,7 @@ terra::writeRaster(temperature_classified,
 * Plot the rasters - do you see large differences? Compute the difference between the rasters, and plot that too.
 
 ```{r}
-focal_mean <- focal(mean_inari, w = 3, fun = mean)
 
-inari_stack <- c(mean_inari, focal_mean)
-plot(inari_stack)
 ```
 
 
