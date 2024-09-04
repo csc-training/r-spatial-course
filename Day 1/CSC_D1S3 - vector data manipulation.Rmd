@@ -170,8 +170,6 @@ plot(major_basins)
 
 With the dissolved major basins, we can try simplification using st_simplify(). It operates on each individual geometry separately, and thus does not preserve uniform polygon borders. For polygon feature sets which share borders, we could use function ms_simplify() from 'rmapshaper' package.
 
-It will likely be soon fixed.
-
 ```{r message=FALSE, warning=FALSE}
 # st_simplify() takes toleranse in the units of CRS. In our case it is UTM, so the unit is meters.
 simplified_st <- sf::st_simplify(major_basins, dTolerance = 5000)
